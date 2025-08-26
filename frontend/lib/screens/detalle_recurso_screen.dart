@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../models/recurso_model.dart';
 
 class DetalleRecursoScreen extends StatefulWidget {
@@ -43,14 +43,6 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
     super.dispose();
   }
 
-  Future<void> openPdf(String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri)) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No se pudo abrir el PDF')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     Widget content;
@@ -77,11 +69,11 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
         ],
       );
     } else if (widget.recurso.fullUrl.endsWith('.pdf')) {
-      content = Center(
-        child: ElevatedButton(
-          onPressed: () => openPdf(widget.recurso.fullUrl),
-          child: const Text("Abrir PDF"),
-        ),
+      // Aquí se muestra el PDF directamente
+      content = SfPdfViewer.network(
+        widget.recurso.fullUrl,
+        canShowScrollHead: true,
+        canShowScrollStatus: true,
       );
     } else {
       content = const Center(child: Text("Tipo de archivo no soportado"));
