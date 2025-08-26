@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/recurso_model.dart';
 
 class ApiService {
-  static const String baseUrl = "https://recursos-monitores.onrender.com/api";
+  static const String baseUrl = "https://recursos-monitores.onrender.com/api/recursos";
 
   static Future<List<Recurso>> getRecursos({
     String? tipo,
@@ -18,14 +18,15 @@ class ApiService {
   }) async {
     try {
       String url = "$baseUrl?";
-      if (page != null) url += "page=$page&";
-      if (limit != null) url += "limit=$limit&";
       if (tipo != null) url += "tipo=$tipo&";
       if (categoria != null) url += "categoria=$categoria&";
-      if (anio != null) url += "anio=$anio&";
+      if (anio != null) url += "anio=${anio.toString()}&";
       if (momento != null) url += "momento=$momento&";
       if (tema != null) url += "tema=$tema&";
       if (grupo != null) url += "grupo=$grupo&";
+      if (page != null) url += "page=$page&";
+      if (limit != null) url += "limit=$limit&";
+
 
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
