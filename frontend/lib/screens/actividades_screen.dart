@@ -1,87 +1,94 @@
 import 'package:flutter/material.dart';
-import '../models/recurso_model.dart';
 import '../services/api_service.dart';
-import '../widgets/recurso_card.dart';
+import '../models/recurso_model.dart';
+import '../widgets/resource_screen.dart';
 
 class ActividadesScreen extends StatefulWidget {
   const ActividadesScreen({super.key});
+
   @override
-  _ActividadesScreenState createState() => _ActividadesScreenState();
+  State<ActividadesScreen> createState() => _ActividadesScreenState();
 }
 
 class _ActividadesScreenState extends State<ActividadesScreen> {
+  int? selectedAnio;
+  String? selectedMomento;
   List<Recurso> recursos = [];
   bool loading = true;
-  bool loadingMore = false;
-  int page = 1;
-  final int limit = 10;
-  final ScrollController _scrollController = ScrollController();
+
+  final momentos = ["Mañana", "Tarde", "Velada", "Olimpiada"];
 
   @override
   void initState() {
     super.initState();
     fetchRecursos();
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 100 && !loadingMore) {
-        fetchMore();
-      }
-    });
   }
 
   Future<void> fetchRecursos() async {
     setState(() => loading = true);
     try {
-      final data = await ApiService.getRecursos(tipo: "actividad", page: 1, limit: limit);
+      final data = await ApiService.getRecursos(
+        tipo: "actividad",
+        anio: selectedAnio,
+        momento: selectedMomento,
+        page: 1,
+        limit: 20,
+      );
       setState(() {
         recursos = data;
-        page = 2;
+        loading = false;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al cargar recursos: $e")),
-      );
-    } finally {
       setState(() => loading = false);
-    }
-  }
-
-  Future<void> fetchMore() async {
-    setState(() => loadingMore = true);
-    try {
-      final data = await ApiService.getRecursos(tipo: "actividad", page: page, limit: limit);
-      setState(() {
-        recursos.addAll(data);
-        page++;
-      });
-    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al cargar más recursos: $e")),
+        SnackBar(content: Text("Error: $e")),
       );
-    } finally {
-      setState(() => loadingMore = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Actividades")),
-      body: loading
-          ? Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: fetchRecursos,
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: recursos.length + (loadingMore ? 1 : 0),
-                itemBuilder: (_, i) {
-                  if (i < recursos.length) return RecursoCard(recurso: recursos[i]);
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                },
-              ),
+      appBar: AppBar(title: const Text("Actividades")),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                DropdownButton<int>(
+                  hint: const Text("Año"),
+                  value: selectedAnio,
+                  items: [2022, 2023, 2024, 2025]
+                      .map((a) => DropdownMenuItem(value: a, child: Text("$a")))
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() => selectedAnio = v);
+                    fetchRecursos();
+                  },
+                ),
+                const SizedBox(width: 16),
+                DropdownButton<String>(
+                  hint: const Text("Momento"),
+                  value: selectedMomento,
+                  items: momentos
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() => selectedMomento = v);
+                    fetchRecursos();
+                  },
+                ),
+              ],
             ),
+          ),
+          Expanded(
+            child: loading
+                ? const Center(child: CircularProgressIndicator())
+                : ResourceScreen(recursos: recursos),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,31 +1,45 @@
 class Recurso {
   final String id;
   final String titulo;
-  final String descripcion;
-  final String categoria;
-  final String tipo;
-  final String tipoArchivo;
-  final String urlArchivo;
+  final String? descripcion;
+  final String tipo; // "formacion", "actividad", "dinamica"
+  final String archivoUrl;
+  final String? anio;
+  final String? momento;
+  final String? tema;
+  final String? grupo;
+  final DateTime fecha;
 
   Recurso({
     required this.id,
     required this.titulo,
-    required this.descripcion,
-    required this.categoria,
+    this.descripcion,
     required this.tipo,
-    required this.tipoArchivo,
-    required this.urlArchivo,
+    required this.archivoUrl,
+    this.anio,
+    this.momento,
+    this.tema,
+    this.grupo,
+    required this.fecha,
   });
 
   factory Recurso.fromJson(Map<String, dynamic> json) {
     return Recurso(
       id: json['_id'],
       titulo: json['titulo'],
-      descripcion: json['descripcion'] ?? '',
-      categoria: json['categoria'] ?? '',
+      descripcion: json['descripcion'],
       tipo: json['tipo'],
-      tipoArchivo: json['tipo_archivo'],
-      urlArchivo: json['url_archivo'],
+      archivoUrl: json['archivoUrl'],
+      anio: json['anio'],
+      momento: json['momento'],
+      tema: json['tema'],
+      grupo: json['grupo'],
+      fecha: DateTime.parse(json['fecha']),
     );
+  }
+
+  /// URL completa para abrir el archivo
+  String get fullUrl {
+    return "https://recursos-monitores.onrender.com$archivoUrl";
   }
 }

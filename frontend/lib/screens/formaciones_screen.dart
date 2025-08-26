@@ -12,74 +12,60 @@ class FormacionesScreen extends StatefulWidget {
 class _FormacionesScreenState extends State<FormacionesScreen> {
   List<Recurso> recursos = [];
   bool loading = true;
-  bool loadingMore = false;
-  int page = 1;
-  final int limit = 10;
-  final ScrollController _scrollController = ScrollController();
+  String search = "";
 
   @override
   void initState() {
     super.initState();
     fetchRecursos();
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 100 && !loadingMore) {
-        fetchMore();
-      }
-    });
   }
 
   Future<void> fetchRecursos() async {
     setState(() => loading = true);
     try {
-      final data = await ApiService.getRecursos(tipo: "formacion", page: 1, limit: limit);
-      setState(() {
-        recursos = data;
-        page = 2;
-      });
+      final data = await ApiService.getRecursos(tipo: "formacion");
+      setState(() => recursos = data);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al cargar recursos: $e")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       setState(() => loading = false);
     }
   }
 
-  Future<void> fetchMore() async {
-    setState(() => loadingMore = true);
-    try {
-      final data = await ApiService.getRecursos(tipo: "formacion", page: page, limit: limit);
-      setState(() {
-        recursos.addAll(data);
-        page++;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al cargar más recursos: $e")),
-      );
-    } finally {
-      setState(() => loadingMore = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    List<Recurso> filtered = recursos
+        .where((r) => r.titulo.toLowerCase().contains(search.toLowerCase()))
+        .toList();
+
     return Scaffold(
-      appBar: AppBar(title: Text("Formaciones")),
+      appBar: AppBar(
+        title: const Text("Formaciones"),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: "Buscar...",
+                fillColor: Colors.white,
+                filled: true,
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (val) => setState(() => search = val),
+            ),
+          ),
+        ),
+      ),
       body: loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: fetchRecursos,
               child: ListView.builder(
-                controller: _scrollController,
-                itemCount: recursos.length + (loadingMore ? 1 : 0),
-                itemBuilder: (_, i) {
-                  if (i < recursos.length) return RecursoCard(recurso: recursos[i]);
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                },
+                itemCount: filtered.length,
+                itemBuilder: (_, i) => RecursoCard(recurso: filtered[i]),
               ),
             ),
     );

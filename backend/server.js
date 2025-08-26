@@ -8,8 +8,14 @@ connectDB();
 
 app.use(cors());
 app.use(express.json());
+
+// Servir archivos estáticos (upload.html y otros)
+app.use(express.static(path.join(__dirname)));
+
+// Carpeta de uploads
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Rutas de la API
 app.use("/api/recursos", require("./routes/recursos"));
 
 const PORT = process.env.PORT || 5000;
