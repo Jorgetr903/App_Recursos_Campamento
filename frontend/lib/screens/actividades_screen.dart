@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../models/recurso_model.dart';
-import '../widgets/resource_screen.dart';
 import 'detalle_recurso_screen.dart';
 
 class ActividadesScreen extends StatefulWidget {
@@ -53,6 +53,15 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
     Share.share(message);
   }
 
+  Future<void> downloadRecurso(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se pudo descargar el archivo")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,9 +110,18 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                           return ListTile(
                             title: Text(recurso.titulo),
                             subtitle: Text(recurso.momento ?? ''),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.share),
-                              onPressed: () => shareRecurso(recurso),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.share),
+                                  onPressed: () => shareRecurso(recurso),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.download),
+                                  onPressed: () => downloadRecurso(recurso.fullUrl),
+                                ),
+                              ],
                             ),
                             onTap: () {
                               Navigator.push(
