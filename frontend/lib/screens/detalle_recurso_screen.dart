@@ -29,24 +29,35 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
   }
 
   Future<void> loadRecurso() async {
-    if (widget.recurso.archivoUrl.endsWith('.pdf')) {
-      // Descargar PDF
-      final dir = await getTemporaryDirectory();
-      final filePath = '${dir.path}/${widget.recurso.titulo}.pdf';
+    if (widget.recurso.fullUrl.endsWith('.pdf')) {
+    final dir = await getTemporaryDirectory();
+    final filePath = '${dir.path}/${widget.recurso.titulo}.pdf';
+    try {
       final response = await http.get(Uri.parse(widget.recurso.fullUrl));
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
-      setState(() {
-        localPdfPath = filePath;
-        loading = false;
-      });
-    } else if (widget.recurso.archivoUrl.endsWith('.mp4')) {
-      _videoController = VideoPlayerController.network(widget.recurso.fullUrl)
-        ..initialize().then((_) {
-          setState(() => loading = false);
-          _videoController!.play();
+      if (response.statusCode == 200) {
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+        if (!mounted) return;
+        setState(() {
+          localPdfPath = filePath;
+          loading = false;
         });
-    } else if (widget.recurso.archivoUrl.endsWith('.mp3')) {
+      } else {
+        throw Exception('Error descargando PDF: ${response.statusCode}');
+      }
+    } catch (e) {
+      print(e);
+      setState(() => loading = false);
+    }
+
+    } else if (widget.recurso.fullUrl.endsWith('.mp4')) {
+      _videoController!.initialize().then((_) {
+        if (!mounted) return;
+        setState(() => loading = false);
+        _videoController!.play();
+      });
+
+    } else if (widget.recurso.fullUrl.endsWith('.mp3')) {
       _audioPlayer = AudioPlayer();
       await _audioPlayer!.setUrl(widget.recurso.fullUrl);
       setState(() => loading = false);
