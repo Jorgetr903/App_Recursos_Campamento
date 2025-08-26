@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/formaciones_screen.dart';
 import 'screens/actividades_screen.dart';
 import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
+import 'providers/favoritos_provider.dart'; // crea este archivo
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('favoritos');
-  runApp(const MyApp());
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => FavoritosProvider(), // provider de favoritos
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
