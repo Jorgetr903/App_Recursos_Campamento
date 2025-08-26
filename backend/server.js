@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // Carpeta de uploads
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // Rutas de la API
 app.use("/api/recursos", require("./routes/recursos"));
