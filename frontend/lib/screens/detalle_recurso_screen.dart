@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/recurso_model.dart';
 
 class DetalleRecursoScreen extends StatefulWidget {
   final Recurso recurso;
-
   const DetalleRecursoScreen({super.key, required this.recurso});
 
   @override
@@ -29,16 +28,12 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
       _videoController = VideoPlayerController.network(widget.recurso.fullUrl);
       await _videoController!.initialize();
       _videoController!.play();
-      setState(() => loading = false);
     } else if (widget.recurso.fullUrl.endsWith('.mp3')) {
       _audioPlayer = AudioPlayer();
       await _audioPlayer!.setUrl(widget.recurso.fullUrl);
       _audioPlayer!.play();
-      setState(() => loading = false);
-    } else {
-      // PDFs o URLs genéricas se abrirán directamente en WebView
-      setState(() => loading = false);
     }
+    setState(() => loading = false);
   }
 
   @override
@@ -46,6 +41,14 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
     _videoController?.dispose();
     _audioPlayer?.dispose();
     super.dispose();
+  }
+
+  Future<void> openPdf(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No se pudo abrir el PDF')));
+    }
   }
 
   @override
@@ -74,9 +77,11 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
         ],
       );
     } else if (widget.recurso.fullUrl.endsWith('.pdf')) {
-      content = WebView(
-        initialUrl: widget.recurso.fullUrl,
-        javascriptMode: JavascriptMode.unrestricted,
+      content = Center(
+        child: ElevatedButton(
+          onPressed: () => openPdf(widget.recurso.fullUrl),
+          child: const Text("Abrir PDF"),
+        ),
       );
     } else {
       content = const Center(child: Text("Tipo de archivo no soportado"));
