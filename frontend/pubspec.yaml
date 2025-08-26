@@ -9,6 +9,7 @@ dependencies:
     sdk: flutter
   url_launcher: ^6.1.10
   syncfusion_flutter_pdfviewer: ^30.2.7
+  share_plus: ^11.1.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   flutter_staggered_animations: ^1.1.1

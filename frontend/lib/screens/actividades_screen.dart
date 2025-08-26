@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 import '../models/recurso_model.dart';
 import '../widgets/resource_screen.dart';
+import 'detalle_recurso_screen.dart';
 
 class ActividadesScreen extends StatefulWidget {
   const ActividadesScreen({super.key});
@@ -32,7 +34,7 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         anio: selectedAnio,
         momento: selectedMomento,
         page: 1,
-        limit: 20,
+        limit: 50,
       );
       setState(() {
         recursos = data;
@@ -44,6 +46,11 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         SnackBar(content: Text("Error: $e")),
       );
     }
+  }
+
+  void shareRecurso(Recurso recurso) {
+    final message = "Mira esta actividad: ${recurso.titulo}\n${recurso.fullUrl}";
+    Share.share(message);
   }
 
   @override
@@ -85,7 +92,31 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : ResourceScreen(recursos: recursos),
+                : recursos.isEmpty
+                    ? const Center(child: Text("No hay recursos disponibles"))
+                    : ListView.builder(
+                        itemCount: recursos.length,
+                        itemBuilder: (context, index) {
+                          final recurso = recursos[index];
+                          return ListTile(
+                            title: Text(recurso.titulo),
+                            subtitle: Text(recurso.momento ?? ''),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.share),
+                              onPressed: () => shareRecurso(recurso),
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      DetalleRecursoScreen(recurso: recurso),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
           ),
         ],
       ),
