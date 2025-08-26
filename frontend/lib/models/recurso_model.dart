@@ -4,7 +4,7 @@ class Recurso {
   final String? descripcion;
   final String tipo; // "formacion", "actividad", "dinamica"
   final String archivoUrl;
-  final String? anio;
+  final int? anio;
   final String? momento;
   final String? tema;
   final String? grupo;
@@ -30,13 +30,14 @@ class Recurso {
       descripcion: json['descripcion'],
       tipo: json['tipo'],
       archivoUrl: json['archivoUrl'],
-      anio: json['anio'],
+      anio: json['anio'] != null ? int.tryParse(json['anio'].toString()) : null,
       momento: json['momento'],
       tema: json['tema'],
       grupo: json['grupo'],
       fecha: DateTime.parse(json['fecha']),
     );
   }
+
 
   /// URL completa para abrir el archivo
   String get fullUrl {
