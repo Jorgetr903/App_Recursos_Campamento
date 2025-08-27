@@ -62,7 +62,7 @@ class SplashScreen extends StatelessWidget {
             right: 0,
             child: Image.asset(
               "assets/logoCSP.png",
-              height: 100,
+              height: 200,
             ),
           ),
           const Center(
