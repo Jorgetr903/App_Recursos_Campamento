@@ -7,6 +7,7 @@ import 'screens/actividades_screen.dart';
 import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
 import 'providers/favoritos_provider.dart';
+import 'screens/splash_screen.dart';
 import 'dart:async';
 
 void main() async {
