@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../main.dart'; 
+import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
   DashboardScreen({Key? key}) : super(key: key);
@@ -17,52 +17,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _DashboardItem('Dinámicas', Icons.group, Colors.orangeAccent, 3),
   ];
 
-  String searchQuery = '';
-
   @override
   Widget build(BuildContext context) {
-    final filteredItems = allItems
-        .where((item) => item.title.toLowerCase().contains(searchQuery.toLowerCase()))
-        .toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: Colors.blueAccent,
-        title: TextField(
-          decoration: const InputDecoration(
-            hintText: "Buscar recursos...",
-            border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.white70),
-          ),
-          style: const TextStyle(color: Colors.white),
-          onChanged: (query) {
-            setState(() => searchQuery = query);
-          },
-        ),
         centerTitle: true,
+        title: const Text(
+          "CSP",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: AnimationLimiter(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 3 / 2,
-            ),
-            itemCount: filteredItems.length,
+          child: ListView.builder(
+            itemCount: allItems.length,
             itemBuilder: (context, index) {
-              final item = filteredItems[index];
-              final box = Hive.box('favoritos');
-              final isFavorito = box.get(item.title, defaultValue: false);
-
-              return AnimationConfiguration.staggeredGrid(
+              final item = allItems[index];
+              return AnimationConfiguration.staggeredList(
                 position: index,
                 duration: const Duration(milliseconds: 400),
-                columnCount: 2,
-                child: ScaleAnimation(
+                child: SlideAnimation(
+                  verticalOffset: 50,
                   child: FadeInAnimation(
                     child: GestureDetector(
                       onTap: () {
@@ -74,8 +55,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         elevation: 6,
                         shadowColor: Colors.black26,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
                         child: Container(
-                          padding: const EdgeInsets.all(16),
+                          width: double.infinity, // ocupa todo el ancho
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
                             gradient: LinearGradient(
@@ -87,13 +70,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(item.icon, size: 48, color: Colors.white),
+                              Icon(item.icon, size: 60, color: Colors.white),
                               const SizedBox(height: 12),
                               Text(
                                 item.title,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 18,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 textAlign: TextAlign.center,

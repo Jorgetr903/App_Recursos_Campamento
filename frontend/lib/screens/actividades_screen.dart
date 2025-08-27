@@ -14,17 +14,11 @@ class ActividadesScreen extends StatefulWidget {
 class _ActividadesScreenState extends State<ActividadesScreen> {
   int? selectedAnio;
   String? selectedMomento;
-  String? selectedSort = "recent"; // default
   String searchQuery = "";
   List<Recurso> recursos = [];
   bool loading = true;
 
   final momentos = ["Mañana", "Tarde", "Velada", "Olimpiada"];
-  final sortOptions = {
-    "recent": "Más recientes",
-    "oldest": "Más antiguos",
-    "alpha": "Alfabético",
-  };
 
   @override
   void initState() {
@@ -40,7 +34,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         anio: selectedAnio,
         momento: selectedMomento,
         q: searchQuery.isNotEmpty ? searchQuery : null,
-        sort: selectedSort,
         page: 1,
         limit: 50,
       );
@@ -113,19 +106,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                       .toList(),
                   onChanged: (v) {
                     setState(() => selectedMomento = v);
-                    fetchRecursos();
-                  },
-                ),
-                DropdownButton<String>(
-                  value: selectedSort,
-                  items: sortOptions.entries
-                      .map((e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() => selectedSort = v);
                     fetchRecursos();
                   },
                 ),
