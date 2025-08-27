@@ -7,6 +7,7 @@ import 'screens/actividades_screen.dart';
 import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
 import 'providers/favoritos_provider.dart';
+import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,11 +36,75 @@ class MyApp extends StatelessWidget {
             .copyWith(secondary: Colors.orangeAccent),
         textTheme: const TextTheme(bodyMedium: TextStyle(fontSize: 16)),
       ),
-      home: MainNavigation(key: mainNavKey),
+      home: const SplashWrapper(),
     );
   }
 }
 
+// ---------------- Splash Custom ----------------
+class SplashWrapper extends StatefulWidget {
+  const SplashWrapper({super.key});
+
+  @override
+  State<SplashWrapper> createState() => _SplashWrapperState();
+}
+
+class _SplashWrapperState extends State<SplashWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Simula carga inicial (fetchRecursos, conexión Render/Mongo)
+    Timer(const Duration(seconds: 3), () {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => MainNavigation(key: mainNavKey)),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const SplashScreen();
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Fondo cubre toda la pantalla
+          SizedBox.expand(
+            child: Image.asset(
+              "assets/fondo.png",
+              fit: BoxFit.cover,
+            ),
+          ),
+          // Logo de marca arriba en medio
+          Positioned(
+            top: 60,
+            left: 0,
+            right: 0,
+            child: Image.asset(
+              "assets/logoCSP.png",
+              height: 100,
+            ),
+          ),
+          // Spinner en el centro
+          const Center(
+            child: CircularProgressIndicator(
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- MainNavigation ----------------
 final GlobalKey<_MainNavigationState> mainNavKey =
     GlobalKey<_MainNavigationState>();
 

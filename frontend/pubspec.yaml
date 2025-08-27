@@ -29,12 +29,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
+  assets:
+    - assets/fondo.png
+    - assets/logoCSP.png
 
 flutter_native_splash:
-  color: "#ffffff"   # color de fondo
-  image: assets/fondo.png   # tu logo o imagen central
-  branding: assets/logoCSP.png  # opcional, texto o marca
+  color: "#ffffff"          # color de fondo nativo
+  image: assets/fondo.png   # fondo splash nativo
   android_12:
     image: assets/fondo.png
     icon_background_color: "#ffffff"
