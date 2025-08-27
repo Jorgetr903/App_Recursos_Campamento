@@ -1,3 +1,4 @@
+// lib/services/api_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -15,20 +16,25 @@ class ApiService {
     String? momento,
     String? tema,
     String? grupo,
+    String? q,           // <--- NUEVO
+    String? sort,        // <--- NUEVO: "recent" | "oldest" | "alpha"
   }) async {
     try {
-      String url = "$baseUrl?";
-      if (tipo != null) url += "tipo=$tipo&";
-      if (categoria != null) url += "categoria=$categoria&";
-      if (anio != null) url += "anio=${anio.toString()}&";
-      if (momento != null) url += "momento=$momento&";
-      if (tema != null) url += "tema=$tema&";
-      if (grupo != null) url += "grupo=$grupo&";
-      if (page != null) url += "page=$page&";
-      if (limit != null) url += "limit=$limit&";
+      final params = <String, String>{};
+      if (tipo != null) params['tipo'] = tipo;
+      if (categoria != null) params['categoria'] = categoria;
+      if (anio != null) params['anio'] = anio.toString();
+      if (momento != null) params['momento'] = momento;
+      if (tema != null) params['tema'] = tema;
+      if (grupo != null) params['grupo'] = grupo;
+      if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+      if (sort != null) params['sort'] = sort;
+      if (page != null) params['page'] = page.toString();
+      if (limit != null) params['limit'] = limit.toString();
 
+      final uri = Uri.parse(baseUrl).replace(queryParameters: params);
+      final response = await http.get(uri);
 
-      final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => Recurso.fromJson(json)).toList();
@@ -42,7 +48,8 @@ class ApiService {
 
   static Future<Recurso> getRecursoById(String id) async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/recursos/$id"));
+      final uri = Uri.parse("$baseUrl/$id");
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         return Recurso.fromJson(data);
@@ -55,5 +62,4 @@ class ApiService {
       throw Exception("Error inesperado: $e");
     }
   }
-
 }

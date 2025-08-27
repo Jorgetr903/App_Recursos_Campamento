@@ -13,11 +13,18 @@ class DinamicasScreen extends StatefulWidget {
 class _DinamicasScreenState extends State<DinamicasScreen> {
   String? selectedTema;
   String? selectedGrupo;
+  String? selectedSort = "recent"; // por defecto
+  String searchQuery = "";
   List<Recurso> recursos = [];
   bool loading = true;
 
   final temas = ["Presentación", "Confianza", "Cooperación", "Animación"];
   final grupos = ["Pequeños", "Medianos", "Mayores"];
+  final sortOptions = {
+    "recent": "Más recientes",
+    "oldest": "Más antiguos",
+    "alpha": "Alfabético",
+  };
 
   @override
   void initState() {
@@ -32,6 +39,8 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
         tipo: "dinamica",
         tema: selectedTema,
         grupo: selectedGrupo,
+        q: searchQuery.isNotEmpty ? searchQuery : null,
+        sort: selectedSort,
         page: 1,
         limit: 50,
       );
@@ -53,6 +62,24 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
       appBar: AppBar(title: const Text("Dinámicas")),
       body: Column(
         children: [
+          // 🔍 Buscador
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Buscar dinámicas...",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onSubmitted: (value) {
+                setState(() => searchQuery = value);
+                fetchRecursos();
+              },
+            ),
+          ),
+          // Filtros: tema, grupo y ordenación
           Padding(
             padding: const EdgeInsets.all(8),
             child: Row(
@@ -80,9 +107,24 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                     fetchRecursos();
                   },
                 ),
+                const SizedBox(width: 16),
+                DropdownButton<String>(
+                  value: selectedSort,
+                  items: sortOptions.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() => selectedSort = v);
+                    fetchRecursos();
+                  },
+                ),
               ],
             ),
           ),
+          // Lista de recursos
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
