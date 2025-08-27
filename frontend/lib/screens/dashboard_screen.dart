@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../main.dart'; // 👈 para acceder a mainNavKey
+import '../main.dart'; 
 
 class DashboardScreen extends StatefulWidget {
   DashboardScreen({Key? key}) : super(key: key);
@@ -87,21 +87,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      isFavorito ? Icons.favorite : Icons.favorite_border,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      box.put(item.title, !isFavorito);
-                                      setState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
                               Icon(item.icon, size: 48, color: Colors.white),
                               const SizedBox(height: 12),
                               Text(

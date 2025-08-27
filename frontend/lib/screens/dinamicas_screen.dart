@@ -12,20 +12,13 @@ class DinamicasScreen extends StatefulWidget {
 }
 
 class _DinamicasScreenState extends State<DinamicasScreen> {
-  String? selectedTema;
+  int? selectedAnio;
   String? selectedGrupo;
-  String? selectedSort = "recent"; // por defecto
   String searchQuery = "";
   List<Recurso> recursos = [];
   bool loading = true;
 
-  final temas = ["Presentación", "Confianza", "Cooperación", "Animación"];
   final grupos = ["Pequeños", "Medianos", "Mayores"];
-  final sortOptions = {
-    "recent": "Más recientes",
-    "oldest": "Más antiguos",
-    "alpha": "Alfabético",
-  };
 
   @override
   void initState() {
@@ -38,10 +31,9 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
     try {
       final data = await ApiService.getRecursos(
         tipo: "dinamica",
-        tema: selectedTema,
+        anio: selectedAnio,
         grupo: selectedGrupo,
         q: searchQuery.isNotEmpty ? searchQuery : null,
-        sort: selectedSort,
         page: 1,
         limit: 50,
       );
@@ -95,14 +87,14 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
               spacing: 15,
               runSpacing: 8,
               children: [
-                DropdownButton<String>(
-                  hint: const Text("Tema"),
-                  value: selectedTema,
-                  items: temas
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                DropdownButton<int>(
+                  hint: const Text("Año"),
+                  value: selectedAnio,
+                  items: [2022, 2023, 2024, 2025]
+                      .map((a) => DropdownMenuItem(value: a, child: Text("$a")))
                       .toList(),
                   onChanged: (v) {
-                    setState(() => selectedTema = v);
+                    setState(() => selectedAnio = v);
                     fetchRecursos();
                   },
                 ),
@@ -114,19 +106,6 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                       .toList(),
                   onChanged: (v) {
                     setState(() => selectedGrupo = v);
-                    fetchRecursos();
-                  },
-                ),
-                DropdownButton<String>(
-                  value: selectedSort,
-                  items: sortOptions.entries
-                      .map((e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() => selectedSort = v);
                     fetchRecursos();
                   },
                 ),

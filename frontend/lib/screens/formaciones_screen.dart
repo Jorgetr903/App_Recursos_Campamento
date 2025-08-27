@@ -15,13 +15,6 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
   List<Recurso> recursos = [];
   bool loading = true;
   String searchQuery = "";
-  String? selectedSort = "recent"; // solo "más recientes"
-
-  final sortOptions = {
-    "recent": "Más recientes",
-    "oldest": "Más antiguos",
-    "alpha": "Alfabético",
-  };
 
   @override
   void initState() {
@@ -35,7 +28,6 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
       final data = await ApiService.getRecursos(
         tipo: "formacion",
         q: searchQuery.isNotEmpty ? searchQuery : null,
-        sort: selectedSort,
         page: 1,
         limit: 50,
       );
@@ -79,30 +71,6 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
               },
             ),
           ),
-          // Filtros con Wrap (evita overflow en pantallas pequeñas)
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                DropdownButton<String>(
-                  value: selectedSort,
-                  items: sortOptions.entries
-                      .map((e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() => selectedSort = v);
-                    fetchRecursos();
-                  },
-                ),
-              ],
-            ),
-          ),
-          // Lista de recursos
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
