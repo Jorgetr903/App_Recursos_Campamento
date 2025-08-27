@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/recurso_model.dart';
 import '../widgets/resource_screen.dart';
+import '../main.dart';
 
 class ActividadesScreen extends StatefulWidget {
   const ActividadesScreen({super.key});
@@ -58,7 +59,15 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Actividades")),
+      appBar: AppBar(
+        title: const Text("Actividades"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            mainNavKey.currentState?.setIndex(0);
+          },
+        ),
+      ),
       body: Column(
         children: [
           // 🔍 Buscador

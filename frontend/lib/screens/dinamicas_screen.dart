@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/recurso_model.dart';
 import '../widgets/resource_screen.dart';
+import '../main.dart';
 
 class DinamicasScreen extends StatefulWidget {
   const DinamicasScreen({super.key});
@@ -59,7 +60,15 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Dinámicas")),
+      appBar: AppBar(
+        title: const Text("Dinámicas"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            mainNavKey.currentState?.setIndex(0);
+          },
+        ),
+      ),
       body: Column(
         children: [
           // 🔍 Buscador
@@ -83,7 +92,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
           Padding(
             padding: const EdgeInsets.all(8),
             child: Wrap(
-              spacing: 16,
+              spacing: 15,
               runSpacing: 8,
               children: [
                 DropdownButton<String>(

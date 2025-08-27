@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/recurso_model.dart';
 import '../services/api_service.dart';
 import '../widgets/recurso_card.dart';
+import '../main.dart'; // para mainNavKey
 
 class FormacionesScreen extends StatefulWidget {
   const FormacionesScreen({super.key});
@@ -12,7 +13,8 @@ class FormacionesScreen extends StatefulWidget {
 class _FormacionesScreenState extends State<FormacionesScreen> {
   List<Recurso> recursos = [];
   bool loading = true;
-  String search = "";
+  String searchQuery = "";
+  String selectedSort = "recent"; // solo "más recientes"
 
   @override
   void initState() {
@@ -23,7 +25,13 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
   Future<void> fetchRecursos() async {
     setState(() => loading = true);
     try {
-      final data = await ApiService.getRecursos(tipo: "formacion");
+      final data = await ApiService.getRecursos(
+        tipo: "formacion",
+        q: searchQuery.isNotEmpty ? searchQuery : null,
+        sort: selectedSort,
+        page: 1,
+        limit: 50,
+      );
       setState(() => recursos = data);
     } catch (e) {
       ScaffoldMessenger.of(context)
@@ -35,26 +43,31 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<Recurso> filtered = recursos
-        .where((r) => r.titulo.toLowerCase().contains(search.toLowerCase()))
-        .toList();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Formaciones"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            mainNavKey.currentState?.setIndex(0); // vuelve al Dashboard
+          },
+        ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(56),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: "Buscar...",
-                fillColor: Colors.white,
-                filled: true,
-                border: OutlineInputBorder(),
+                hintText: "Buscar formaciones...",
                 prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
               ),
-              onChanged: (val) => setState(() => search = val),
+              onSubmitted: (val) {
+                setState(() => searchQuery = val);
+                fetchRecursos();
+              },
             ),
           ),
         ),
@@ -64,8 +77,9 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
           : RefreshIndicator(
               onRefresh: fetchRecursos,
               child: ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (_, i) => RecursoCard(recurso: filtered[i]),
+                padding: const EdgeInsets.all(8),
+                itemCount: recursos.length,
+                itemBuilder: (_, i) => RecursoCard(recurso: recursos[i]),
               ),
             ),
     );
