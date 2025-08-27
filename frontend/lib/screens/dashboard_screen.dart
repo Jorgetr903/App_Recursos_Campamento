@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../screens/formaciones_screen.dart';
-import '../screens/actividades_screen.dart';
-import '../screens/dinamicas_screen.dart';
+import '../main.dart'; // 👈 para acceder a mainNavKey
 
 class DashboardScreen extends StatefulWidget {
   DashboardScreen({Key? key}) : super(key: key);
@@ -14,9 +12,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final List<_DashboardItem> allItems = [
-    _DashboardItem('Formaciones', Icons.school, Colors.blueAccent, FormacionesScreen()),
-    _DashboardItem('Actividades', Icons.sports, Colors.green, ActividadesScreen()),
-    _DashboardItem('Dinámicas', Icons.group, Colors.orangeAccent, DinamicasScreen()),
+    _DashboardItem('Formaciones', Icons.school, Colors.blueAccent, 1),
+    _DashboardItem('Actividades', Icons.sports, Colors.green, 2),
+    _DashboardItem('Dinámicas', Icons.group, Colors.orangeAccent, 3),
   ];
 
   String searchQuery = '';
@@ -68,10 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: FadeInAnimation(
                     child: GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => item.screen),
-                        );
+                        mainNavKey.currentState?.setIndex(item.index);
                       },
                       child: Card(
                         shape: RoundedRectangleBorder(
@@ -138,7 +133,7 @@ class _DashboardItem {
   final String title;
   final IconData icon;
   final Color color;
-  final Widget screen;
+  final int index;
 
-  _DashboardItem(this.title, this.icon, this.color, this.screen);
+  _DashboardItem(this.title, this.icon, this.color, this.index);
 }

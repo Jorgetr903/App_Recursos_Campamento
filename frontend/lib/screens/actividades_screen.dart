@@ -78,10 +78,12 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
               },
             ),
           ),
-          // Filtros de año, momento y ordenación
+          // Filtros con Wrap (evita overflow en pantallas pequeñas)
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Row(
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
               children: [
                 DropdownButton<int>(
                   hint: const Text("Año"),
@@ -94,7 +96,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                     fetchRecursos();
                   },
                 ),
-                const SizedBox(width: 16),
                 DropdownButton<String>(
                   hint: const Text("Momento"),
                   value: selectedMomento,
@@ -106,7 +107,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                     fetchRecursos();
                   },
                 ),
-                const SizedBox(width: 16),
                 DropdownButton<String>(
                   value: selectedSort,
                   items: sortOptions.entries

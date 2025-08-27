@@ -6,7 +6,7 @@ import 'screens/formaciones_screen.dart';
 import 'screens/actividades_screen.dart';
 import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
-import 'providers/favoritos_provider.dart'; // crea este archivo
+import 'providers/favoritos_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +15,7 @@ void main() async {
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) => FavoritosProvider(), // provider de favoritos
+      create: (_) => FavoritosProvider(),
       child: const MyApp(),
     ),
   );
@@ -40,6 +40,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
+final GlobalKey<_MainNavigationState> mainNavKey =
+    GlobalKey<_MainNavigationState>();
+
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
@@ -52,11 +55,15 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final screens = [
     DashboardScreen(),
-    FormacionesScreen(),
-    ActividadesScreen(),
-    DinamicasScreen(),
-    FavoritosScreen(),
+    const FormacionesScreen(),
+    const ActividadesScreen(),
+    const DinamicasScreen(),
+    const FavoritosScreen(),
   ];
+
+  void setIndex(int index) {
+    setState(() => currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +73,7 @@ class _MainNavigationState extends State<MainNavigation> {
         currentIndex: currentIndex,
         selectedItemColor: Colors.blueAccent,
         unselectedItemColor: Colors.grey,
-        onTap: (i) => setState(() => currentIndex = i),
+        onTap: setIndex,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
           BottomNavigationBarItem(icon: Icon(Icons.school), label: "Formaciones"),

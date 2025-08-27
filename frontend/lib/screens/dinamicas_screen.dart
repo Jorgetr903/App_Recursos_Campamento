@@ -82,7 +82,9 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
           // Filtros: tema, grupo y ordenación
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Row(
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
               children: [
                 DropdownButton<String>(
                   hint: const Text("Tema"),
@@ -95,7 +97,6 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                     fetchRecursos();
                   },
                 ),
-                const SizedBox(width: 16),
                 DropdownButton<String>(
                   hint: const Text("Grupo"),
                   value: selectedGrupo,
@@ -107,7 +108,6 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                     fetchRecursos();
                   },
                 ),
-                const SizedBox(width: 16),
                 DropdownButton<String>(
                   value: selectedSort,
                   items: sortOptions.entries
