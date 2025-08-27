@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
             .copyWith(secondary: Colors.orangeAccent),
         textTheme: const TextTheme(bodyMedium: TextStyle(fontSize: 16)),
       ),
-      home: const MainNavigation(),
+      home: MainNavigation(key: mainNavKey),
     );
   }
 }
