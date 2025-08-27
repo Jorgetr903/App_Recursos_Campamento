@@ -25,6 +25,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_native_splash: ^2.4.0
 
 flutter:
   uses-material-design: true
+
+
+flutter_native_splash:
+  color: "#ffffff"   # color de fondo
+  image: assets/fondo.png   # tu logo o imagen central
+  branding: assets/logoCSP.png  # opcional, texto o marca
+  android_12:
+    image: assets/fondo.png
+    icon_background_color: "#ffffff"
