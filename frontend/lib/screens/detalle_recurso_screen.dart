@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../models/recurso_model.dart';
 
@@ -13,8 +11,6 @@ class DetalleRecursoScreen extends StatefulWidget {
 }
 
 class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
-  VideoPlayerController? _videoController;
-  AudioPlayer? _audioPlayer;
   bool loading = true;
 
   @override
@@ -24,23 +20,9 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
   }
 
   Future<void> loadRecurso() async {
-    if (widget.recurso.fullUrl.endsWith('.mp4')) {
-      _videoController = VideoPlayerController.network(widget.recurso.fullUrl);
-      await _videoController!.initialize();
-      _videoController!.play();
-    } else if (widget.recurso.fullUrl.endsWith('.mp3')) {
-      _audioPlayer = AudioPlayer();
-      await _audioPlayer!.setUrl(widget.recurso.fullUrl);
-      _audioPlayer!.play();
-    }
+    // Solo PDFs, no audio ni video
+    await Future.delayed(const Duration(milliseconds: 500)); // simula carga
     setState(() => loading = false);
-  }
-
-  @override
-  void dispose() {
-    _videoController?.dispose();
-    _audioPlayer?.dispose();
-    super.dispose();
   }
 
   @override
@@ -49,27 +31,8 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
 
     if (loading) {
       content = const Center(child: CircularProgressIndicator());
-    } else if (widget.recurso.fullUrl.endsWith('.mp4') && _videoController != null) {
-      content = AspectRatio(
-        aspectRatio: _videoController!.value.aspectRatio,
-        child: VideoPlayer(_videoController!),
-      );
-    } else if (widget.recurso.fullUrl.endsWith('.mp3') && _audioPlayer != null) {
-      content = Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.audiotrack, size: 64),
-          ElevatedButton(
-            onPressed: () {
-              _audioPlayer!.playing ? _audioPlayer!.pause() : _audioPlayer!.play();
-              setState(() {});
-            },
-            child: Text(_audioPlayer!.playing ? "Pausar" : "Reproducir"),
-          ),
-        ],
-      );
     } else if (widget.recurso.fullUrl.endsWith('.pdf')) {
-      // Aquí se muestra el PDF directamente
+      // Muestra el PDF directamente
       content = SfPdfViewer.network(
         widget.recurso.fullUrl,
         canShowScrollHead: true,
@@ -85,7 +48,8 @@ class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            if (widget.recurso.descripcion != null && widget.recurso.descripcion!.isNotEmpty)
+            if (widget.recurso.descripcion != null &&
+                widget.recurso.descripcion!.isNotEmpty)
               Text(widget.recurso.descripcion!, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
             Expanded(child: content),
