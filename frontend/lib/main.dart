@@ -87,7 +87,7 @@ class SplashScreen extends StatelessWidget {
           // Fondo cubre toda la pantalla
           SizedBox.expand(
             child: Image.asset(
-              "assets/fondo.png",
+              "assets/fondo-min.png",
               fit: BoxFit.cover,
             ),
           ),
