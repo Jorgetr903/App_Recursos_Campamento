@@ -38,11 +38,23 @@ class Recurso {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'titulo': titulo,
+      'descripcion': descripcion,
+      'tipo': tipo,
+      'archivoUrl': archivoUrl,
+      'anio': anio,
+      'momento': momento,
+      'tema': tema,
+      'grupo': grupo,
+      'fecha': fecha.toIso8601String(),
+    };
+  }
 
   /// URL completa para abrir el archivo
-  String get fullUrl {
-    return "https://recursos-monitores.onrender.com$archivoUrl";
-  }
+  String get fullUrl => "https://recursos-monitores.onrender.com$archivoUrl";
 
   /// Clave única para guardar en favoritos
   String get key => id;

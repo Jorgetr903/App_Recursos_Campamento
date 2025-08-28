@@ -2,12 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/recurso_model.dart';
 import '../providers/favoritos_provider.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
 
   const ResourceScreen({super.key, required this.recursos});
+
+  Future<void> _downloadFile(String url, String filename) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final filePath = '${dir.path}/$filename';
+    final response = await http.get(Uri.parse(url));
+    final file = File(filePath);
+    await file.writeAsBytes(response.bodyBytes);
+    // Puedes mostrar un Snackbar o diálogo indicando que se descargó
+  }
+
+  void _shareFile(String url) {
+    Share.share(url);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,45 +43,32 @@ class ResourceScreen extends StatelessWidget {
             leading: const Icon(Icons.insert_drive_file),
             title: Text(recurso.titulo),
             subtitle: recurso.descripcion != null ? Text(recurso.descripcion!) : null,
-            trailing: IconButton(
-              icon: Icon(
-                esFavorito ? Icons.favorite : Icons.favorite_border,
-                color: esFavorito ? Colors.red : Colors.grey,
-              ),
-              onPressed: () {
-                favoritosProvider.toggleFavorito(recurso);
-              },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    esFavorito ? Icons.favorite : Icons.favorite_border,
+                    color: esFavorito ? Colors.red : Colors.grey,
+                  ),
+                  onPressed: () => favoritosProvider.toggleFavorito(recurso),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  onPressed: () => _downloadFile(recurso.fullUrl, recurso.titulo),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () => _shareFile(recurso.fullUrl),
+                ),
+              ],
             ),
             onTap: () {
-              // Abrir recurso según tipo (solo PDF implementado como ejemplo)
-              if (recurso.archivoUrl.endsWith('.pdf')) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PdfViewerScreen(url: recurso.fullUrl, titulo: recurso.titulo),
-                  ),
-                );
-              }
-              // Para otros tipos (mp3/mp4), aquí podrías añadir más lógica si lo necesitas
+              // Aquí puedes abrir el recurso (PDF, video, etc.) como antes
             },
           ),
         );
       },
-    );
-  }
-}
-
-/// Pantalla simple para ver PDFs
-class PdfViewerScreen extends StatelessWidget {
-  final String url;
-  final String titulo;
-
-  const PdfViewerScreen({super.key, required this.url, required this.titulo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: SfPdfViewer.network(url),
     );
   }
 }
