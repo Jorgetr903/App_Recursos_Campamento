@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/recurso_model.dart';
 
 class FavoritosProvider with ChangeNotifier {
-  final List<Recurso> _favoritos = [];
+  late Box _box;
 
-  List<Recurso> get favoritos => List.unmodifiable(_favoritos);
+  FavoritosProvider() {
+    _init();
+  }
 
-  bool isFavorito(Recurso recurso) => _favoritos.any((r) => r.id == recurso.id);
-
-  void toggleFavorito(Recurso recurso) {
-    if (isFavorito(recurso)) {
-      _favoritos.removeWhere((r) => r.id == recurso.id);
-    } else {
-      _favoritos.add(recurso);
-    }
+  Future<void> _init() async {
+    _box = Hive.box('favoritos');
     notifyListeners();
+  }
+
+  /// Devuelve si un recurso está marcado como favorito
+  bool esFavorito(Recurso recurso) {
+    return _box.get(recurso.key, defaultValue: false);
+  }
+
+  /// Cambia el estado de favorito
+  void toggleFavorito(Recurso recurso) {
+    final current = esFavorito(recurso);
+    _box.put(recurso.key, !current);
+    notifyListeners();
+  }
+
+  /// Devuelve todos los recursos que están como favoritos (solo claves)
+  Map<String, bool> get all {
+    return _box.toMap().cast<String, bool>();
   }
 }

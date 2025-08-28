@@ -43,4 +43,7 @@ class Recurso {
   String get fullUrl {
     return "https://recursos-monitores.onrender.com$archivoUrl";
   }
+
+  /// Clave única para guardar en favoritos
+  String get key => id;
 }

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
-  DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({Key? key}) : super(key: key);
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -46,9 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   verticalOffset: 50,
                   child: FadeInAnimation(
                     child: GestureDetector(
-                      onTap: () {
-                        mainNavKey.currentState?.setIndex(item.index);
-                      },
+                      onTap: () => mainNavKey.currentState?.setIndex(item.index),
                       child: Card(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -57,7 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         shadowColor: Colors.black26,
                         margin: const EdgeInsets.symmetric(vertical: 12),
                         child: Container(
-                          width: double.infinity, // ocupa todo el ancho
+                          width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
