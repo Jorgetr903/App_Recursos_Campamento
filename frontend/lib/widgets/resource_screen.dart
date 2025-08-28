@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../screens/detalle_recurso_screen.dart';
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
@@ -54,17 +55,22 @@ class ResourceScreen extends StatelessWidget {
                   onPressed: () => favoritosProvider.toggleFavorito(recurso),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.download),
-                  onPressed: () => _downloadFile(recurso.fullUrl, recurso.titulo),
-                ),
-                IconButton(
                   icon: const Icon(Icons.share),
                   onPressed: () => _shareFile(recurso.fullUrl),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  onPressed: () => _downloadFile(recurso.fullUrl, recurso.titulo),
                 ),
               ],
             ),
             onTap: () {
-              // Aquí puedes abrir el recurso (PDF, video, etc.) como antes
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DetalleRecursoScreen(recurso: recurso),
+                ),
+              );
             },
           ),
         );
