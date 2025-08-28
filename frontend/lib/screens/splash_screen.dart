@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../main.dart';
-import 'dashboard_screen.dart'; // importa tus screens según necesidad
 
 class SplashWrapper extends StatefulWidget {
   const SplashWrapper({super.key});
@@ -24,6 +23,8 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
     // Fetch inicial de recursos (simulación)
     await fetchRecursos();
+
+    if (!mounted) return;
 
     // Navega a la pantalla principal cuando termina
     Navigator.of(context).pushReplacement(
