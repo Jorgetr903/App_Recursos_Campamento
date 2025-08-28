@@ -7,13 +7,10 @@ import 'screens/actividades_screen.dart';
 import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
 import 'providers/favoritos_provider.dart';
-import 'screens/splash_screen.dart';
 import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  await Hive.openBox('favoritos');
 
   runApp(
     ChangeNotifierProvider(
@@ -54,12 +51,22 @@ class _SplashWrapperState extends State<SplashWrapper> {
   @override
   void initState() {
     super.initState();
-    // Simula carga inicial (fetchRecursos, conexión Render/Mongo)
-    Timer(const Duration(seconds: 3), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => MainNavigation(key: mainNavKey)),
-      );
-    });
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    // Aquí cargas todo lo pesado
+    await Hive.initFlutter();
+    await Hive.openBox('favoritos');
+
+    // Aquí podrías hacer fetch a Render/Mongo también
+    await Future.delayed(const Duration(seconds: 5)); // simula carga
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => MainNavigation(key: mainNavKey)),
+    );
   }
 
   @override
@@ -67,6 +74,7 @@ class _SplashWrapperState extends State<SplashWrapper> {
     return const SplashScreen();
   }
 }
+
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -85,12 +93,12 @@ class SplashScreen extends StatelessWidget {
           ),
           // Logo de marca arriba en medio
           Positioned(
-            top: 60,
+            top: 80,
             left: 0,
             right: 0,
             child: Image.asset(
               "assets/logoCSP.png",
-              height: 100,
+              height: 200,
             ),
           ),
           // Spinner en el centro
