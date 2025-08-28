@@ -26,9 +26,12 @@ class FavoritosProvider with ChangeNotifier {
   }
 
   void _loadFromHive() {
+    _favoritos.clear();
     for (var key in _box.keys) {
       final json = _box.get(key);
-      _favoritos.add(Recurso.fromJson(Map<String, dynamic>.from(json)));
+      if (json is Map) { // <-- importante
+        _favoritos.add(Recurso.fromJson(Map<String, dynamic>.from(json)));
+      }
     }
     notifyListeners();
   }

@@ -8,14 +8,13 @@ class FavoritosScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final favoritosProvider = context.watch<FavoritosProvider>();
-    final recursosFavoritos = favoritosProvider.favoritos;
+    final favoritos = context.watch<FavoritosProvider>().favoritos;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Favoritos")),
-      body: recursosFavoritos.isEmpty
+      body: favoritos.isEmpty
           ? const Center(child: Text("No hay favoritos"))
-          : ResourceScreen(recursos: recursosFavoritos),
+          : ResourceScreen(recursos: favoritos),
     );
   }
 }
