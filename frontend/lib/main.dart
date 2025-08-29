@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/formaciones_screen.dart';
 import 'screens/actividades_screen.dart';
@@ -28,11 +29,23 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Recursos Monitores',
       theme: ThemeData(
-        primaryColor: Colors.blueAccent,
-        cardColor: Colors.white,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent)
-            .copyWith(secondary: Colors.orangeAccent),
-        textTheme: const TextTheme(bodyMedium: TextStyle(fontSize: 16)),
+        primaryColor: const Color(0xFF4CAF50), // Verde principal
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Fondo claro
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4CAF50),
+        ).copyWith(
+          primary: const Color(0xFF4CAF50),
+          secondary: const Color(0xFF2196F3),
+          background: const Color(0xFFF5F5F5),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF4CAF50),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(fontSize: 16, color: Color(0xFF212121)),
+        ),
       ),
       home: const SplashWrapper(),
     );
@@ -55,11 +68,9 @@ class _SplashWrapperState extends State<SplashWrapper> {
   }
 
   Future<void> _initApp() async {
-    // Aquí cargas todo lo pesado
     await Hive.initFlutter();
     await Hive.openBox('favoritos');
 
-    // Aquí podrías hacer fetch a Render/Mongo también
     await Future.delayed(const Duration(seconds: 5)); // simula carga
 
     if (!mounted) return;
@@ -75,7 +86,6 @@ class _SplashWrapperState extends State<SplashWrapper> {
   }
 }
 
-
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
@@ -84,14 +94,12 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Fondo cubre toda la pantalla
           SizedBox.expand(
             child: Image.asset(
               "assets/fondo-min.png",
               fit: BoxFit.cover,
             ),
           ),
-          // Logo de marca arriba en medio
           Positioned(
             top: 80,
             left: 0,
@@ -101,7 +109,6 @@ class SplashScreen extends StatelessWidget {
               height: 200,
             ),
           ),
-          // Spinner en el centro
           const Center(
             child: CircularProgressIndicator(
               color: Colors.white,
@@ -145,15 +152,15 @@ class _MainNavigationState extends State<MainNavigation> {
       body: screens[currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
         onTap: setIndex,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
-          BottomNavigationBarItem(icon: Icon(Icons.school), label: "Formaciones"),
-          BottomNavigationBarItem(icon: Icon(Icons.sports), label: "Actividades"),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: "Dinámicas"),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: "Favoritos"),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
+          const BottomNavigationBarItem(icon: Icon(Icons.school), label: "Formaciones"),
+          const BottomNavigationBarItem(icon: Icon(Icons.sports), label: "Actividades"),
+          BottomNavigationBarItem(icon: Icon(MdiIcons.cross), label: "Dinámicas"),
+          const BottomNavigationBarItem(icon: Icon(Icons.favorite), label: "Favoritos"),
         ],
       ),
     );

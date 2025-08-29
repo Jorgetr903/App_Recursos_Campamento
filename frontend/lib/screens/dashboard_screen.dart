@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -11,9 +12,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final List<_DashboardItem> allItems = [
-    _DashboardItem('Formaciones', Icons.school, Colors.blueAccent, 1),
-    _DashboardItem('Actividades', Icons.sports, Colors.green, 2),
-    _DashboardItem('Dinámicas', Icons.group, Colors.orangeAccent, 3),
+    _DashboardItem('Formaciones', Icons.school, const Color(0xFF2196F3), 1),
+    _DashboardItem('Actividades', Icons.sports, const Color(0xFF4CAF50), 2),
+    _DashboardItem('Dinámicas', MdiIcons.cross, const Color(0xFFFFC107), 3),
   ];
 
   @override
@@ -21,12 +22,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.blueAccent,
         centerTitle: true,
         title: const Text(
           "CSP",
           style: TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
