@@ -16,8 +16,8 @@ class ApiService {
     String? momento,
     String? tema,
     String? grupo,
-    String? q,           // <--- NUEVO
-    String? sort,        // <--- NUEVO: "recent" | "oldest" | "alpha"
+    String? q,
+    String? sort,
   }) async {
     try {
       final params = <String, String>{};

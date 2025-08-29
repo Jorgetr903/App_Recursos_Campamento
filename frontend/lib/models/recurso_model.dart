@@ -54,7 +54,7 @@ class Recurso {
   }
 
   /// URL completa para abrir el archivo
-  String get fullUrl => "https://recursos-monitores.onrender.com$archivoUrl";
+  String get fullUrl => archivoUrl;
 
   /// Clave única para guardar en favoritos
   String get key => id;
