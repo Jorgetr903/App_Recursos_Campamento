@@ -62,4 +62,28 @@ class ApiService {
       throw Exception("Error inesperado: $e");
     }
   }
+
+  static Future<List<int>> getYears() async {
+    final uri = Uri.parse("$baseUrl/recursos/years");
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List jsonData = jsonDecode(response.body);
+      return jsonData.cast<int>();
+    } else {
+      throw Exception("Error al cargar los años");
+    }
+  }
+
+  static Future<List<int>> getYearsDinamicas() async {
+    final uri = Uri.parse("$baseUrl/recursos/years-dinamicas");
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List jsonData = jsonDecode(response.body);
+      return jsonData.cast<int>();
+    } else {
+      throw Exception("Error al cargar los años de dinámicas");
+    }
+  }
 }

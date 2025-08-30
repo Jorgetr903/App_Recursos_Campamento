@@ -16,6 +16,7 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
   String? selectedMomento;
   String searchQuery = "";
   List<Recurso> recursos = [];
+  List<int> availableYears = [];
   bool loading = true;
 
   final momentos = ["Mañana", "Tarde", "Velada", "Olimpiada"];
@@ -23,7 +24,36 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
   @override
   void initState() {
     super.initState();
-    fetchRecursos();
+    fetchYearsAndRecursos();
+  }
+
+  Future<void> fetchYearsAndRecursos() async {
+    setState(() => loading = true);
+    try {
+      // primero traemos los años
+      final years = await ApiService.getYears();
+
+      // después traemos los recursos
+      final data = await ApiService.getRecursos(
+        tipo: "actividad",
+        anio: selectedAnio,
+        momento: selectedMomento,
+        q: searchQuery.isNotEmpty ? searchQuery : null,
+        page: 1,
+        limit: 50,
+      );
+
+      setState(() {
+        availableYears = years;
+        recursos = data;
+        loading = false;
+      });
+    } catch (e) {
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   Future<void> fetchRecursos() async {
@@ -80,7 +110,7 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
               },
             ),
           ),
-          // Filtros con Wrap (evita overflow en pantallas pequeñas)
+          // Filtros
           Padding(
             padding: const EdgeInsets.all(8),
             child: Wrap(
@@ -90,7 +120,7 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                 DropdownButton<int>(
                   hint: const Text("Año"),
                   value: selectedAnio,
-                  items: [2022, 2023, 2024, 2025]
+                  items: availableYears
                       .map((a) => DropdownMenuItem(value: a, child: Text("$a")))
                       .toList(),
                   onChanged: (v) {
@@ -102,7 +132,8 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                   hint: const Text("Tipo"),
                   value: selectedMomento,
                   items: momentos
-                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .map((m) =>
+                          DropdownMenuItem(value: m, child: Text(m)))
                       .toList(),
                   onChanged: (v) {
                     setState(() => selectedMomento = v);

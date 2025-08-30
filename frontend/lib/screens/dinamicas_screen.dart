@@ -16,6 +16,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
   String? selectedGrupo;
   String searchQuery = "";
   List<Recurso> recursos = [];
+  List<int> availableYears = [];
   bool loading = true;
 
   final grupos = ["Pequeños", "Medianos", "Mayores"];
@@ -23,7 +24,36 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
   @override
   void initState() {
     super.initState();
-    fetchRecursos();
+    fetchYearsAndRecursos();
+  }
+
+  Future<void> fetchYearsAndRecursos() async {
+    setState(() => loading = true);
+    try {
+      // Traemos los años de dinámicas
+      final years = await ApiService.getYearsDinamicas();
+
+      // Traemos las dinámicas
+      final data = await ApiService.getRecursos(
+        tipo: "dinamica",
+        anio: selectedAnio,
+        grupo: selectedGrupo,
+        q: searchQuery.isNotEmpty ? searchQuery : null,
+        page: 1,
+        limit: 50,
+      );
+
+      setState(() {
+        availableYears = years;
+        recursos = data;
+        loading = false;
+      });
+    } catch (e) {
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   Future<void> fetchRecursos() async {
@@ -80,7 +110,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
               },
             ),
           ),
-          // Filtros: tema, grupo y ordenación
+          // Filtros
           Padding(
             padding: const EdgeInsets.all(8),
             child: Wrap(
@@ -90,7 +120,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                 DropdownButton<int>(
                   hint: const Text("Año"),
                   value: selectedAnio,
-                  items: [2022, 2023, 2024, 2025]
+                  items: availableYears
                       .map((a) => DropdownMenuItem(value: a, child: Text("$a")))
                       .toList(),
                   onChanged: (v) {
