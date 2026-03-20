@@ -10,7 +10,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "4b0967d3d3650572105ade78945994cc
 "assets/assets/logoCSP.png": "252f0c656f0090e982b8f3a33fcc06a2",
 "assets/FontManifest.json": "a2ef58623ed113c7898f5d0bed545cc3",
 "assets/fonts/MaterialIcons-Regular.otf": "3813fabee4dd02b4d33a23d142f3a475",
-"assets/NOTICES": "f894507328a2869c595aecf4cc1f1713",
+"assets/NOTICES": "c378ba85cbfc9b52c9873c99b4254e08",
 "assets/packages/material_design_icons_flutter/lib/fonts/materialdesignicons-webfont.ttf": "3759b2f7a51e83c64a58cfe07b96a8ee",
 "assets/packages/syncfusion_flutter_pdfviewer/assets/fonts/RobotoMono-Regular.ttf": "5b04fdfec4c8c36e8ca574e40b7148bb",
 "assets/packages/syncfusion_flutter_pdfviewer/assets/icons/dark/highlight.png": "2aecc31aaa39ad43c978f209962a985c",
@@ -21,29 +21,29 @@ const RESOURCES = {"assets/AssetManifest.bin": "4b0967d3d3650572105ade78945994cc
 "assets/packages/syncfusion_flutter_pdfviewer/assets/icons/light/squiggly.png": "9894ce549037670d25d2c786036b810b",
 "assets/packages/syncfusion_flutter_pdfviewer/assets/icons/light/strikethrough.png": "26f6729eee851adb4b598e3470e73983",
 "assets/packages/syncfusion_flutter_pdfviewer/assets/icons/light/underline.png": "a98ff6a28215341f764f96d627a5d0f5",
-"assets/shaders/ink_sparkle.frag": "ecc85a2e95f5e9f53123dcaf8cb9b6ce",
-"canvaskit/canvaskit.js": "140ccb7d34d0a55065fbd422b843add6",
-"canvaskit/canvaskit.js.symbols": "58832fbed59e00d2190aa295c4d70360",
+"assets/shaders/ink_sparkle.frag": "9bb2aaa0f9a9213b623947fa682efa76",
+"canvaskit/canvaskit.js": "1b6f288ce484225c079db75751f22814",
+"canvaskit/canvaskit.js.symbols": "a3b4c42fca4cdf168ac2718d2d09bc7a",
 "canvaskit/canvaskit.wasm": "07b9f5853202304d3b0749d9306573cc",
-"canvaskit/chromium/canvaskit.js": "5e27aae346eee469027c80af0751d53d",
-"canvaskit/chromium/canvaskit.js.symbols": "193deaca1a1424049326d4a91ad1d88d",
+"canvaskit/chromium/canvaskit.js": "0d3e893c15ead7da6d36efe877694617",
+"canvaskit/chromium/canvaskit.js.symbols": "03d31667dc4f5676bafee152fe8ff4d7",
 "canvaskit/chromium/canvaskit.wasm": "24c77e750a7fa6d474198905249ff506",
-"canvaskit/skwasm.js": "1ef3ea3a0fec4569e5d531da25f34095",
-"canvaskit/skwasm.js.symbols": "0088242d10d7e7d6d2649d1fe1bda7c1",
+"canvaskit/skwasm.js": "66504b1416ee7a68aee25f965a90949c",
+"canvaskit/skwasm.js.symbols": "09f5d843a50cf276b2dba6fc466b98e6",
 "canvaskit/skwasm.wasm": "264db41426307cfc7fa44b95a7772109",
-"canvaskit/skwasm_heavy.js": "413f5b2b2d9345f37de148e2544f584f",
-"canvaskit/skwasm_heavy.js.symbols": "3c01ec03b5de6d62c34e17014d1decd3",
+"canvaskit/skwasm_heavy.js": "31e5a202dc9ca33e695bc30bca93566c",
+"canvaskit/skwasm_heavy.js.symbols": "7f3cadcdd3b8e95e0160e83d82085ef6",
 "canvaskit/skwasm_heavy.wasm": "8034ad26ba2485dab2fd49bdd786837b",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
-"flutter.js": "888483df48293866f9f41d3d9274a779",
-"flutter_bootstrap.js": "2e6f96f1637fe94bb376626726cc1443",
+"flutter.js": "3265c4a743599232db370a9249855db3",
+"flutter_bootstrap.js": "4b28efa7cb59058c50522cc1febc6cd0",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-maskable-192.png": "c457ef57daa1d16f64b27b786ec2ea3c",
 "icons/Icon-maskable-512.png": "301a7604d45b3e739efc881eb04896ea",
 "index.html": "68982e617c2fa4ad3f9be8f96d2f5b50",
 "/": "68982e617c2fa4ad3f9be8f96d2f5b50",
-"main.dart.js": "d485b4a1e605c1ac539cc0becdc0ceb5",
+"main.dart.js": "0b893999bc985a995d333392a02d1c52",
 "manifest.json": "1b0a156267caf39f2bf5881969be6abf",
 "version.json": "d35672b7529ae2849c1b76c8cff6d832"};
 // The application shell files that are downloaded before a service worker can
@@ -141,78 +141,52 @@ self.addEventListener("fetch", (event) => {
   }
   // If the URL is not the RESOURCE list then return to signal that the
   // browser should take over.
-  if (!RESOURCES[key]) {
-    return;
-  }
-  // If the URL is the index.html, perform an online-first request.
-  if (key == '/') {
-    return onlineFirst(event);
-  }
-  event.respondWith(caches.open(CACHE_NAME)
-    .then((cache) =>  {
-      return cache.match(event.request).then((response) => {
-        // Either respond with the cached resource, or perform a fetch and
-        // lazily populate the cache only if the resource was successfully fetched.
-        return response || fetch(event.request).then((response) => {
-          if (response && Boolean(response.ok)) {
-            cache.put(event.request, response.clone());
-          }
+  if (!RESOURCES[key] && !event.request.url.endsWith('.pdf')) return;
+
+  // Online-first para index.html
+  if (key === '/') {
+    return event.respondWith(
+      fetch(event.request).then((response) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, response.clone());
           return response;
         });
+      }).catch(() => {
+        return caches.open(CACHE_NAME).then((cache) => cache.match(event.request));
       })
-    })
+    );
+  }
+
+  // Cache-first para el resto
+  event.respondWith(
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(event.request).then((response) =>
+        response || fetch(event.request).then((resp) => {
+          if (resp && Boolean(resp.ok)) cache.put(event.request, resp.clone());
+          return resp;
+        })
+      )
+    )
   );
 });
+
+// Mensajes del SW
 self.addEventListener('message', (event) => {
-  // SkipWaiting can be used to immediately activate a waiting service worker.
-  // This will also require a page refresh triggered by the main worker.
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting();
-    return;
-  }
-  if (event.data === 'downloadOffline') {
-    downloadOffline();
-    return;
-  }
+  if (event.data === 'skipWaiting') self.skipWaiting();
+  if (event.data === 'downloadOffline') downloadOffline();
 });
-// Download offline will check the RESOURCES for all files not in the cache
-// and populate them.
+
 async function downloadOffline() {
-  var resources = [];
-  var contentCache = await caches.open(CACHE_NAME);
-  var currentContent = {};
-  for (var request of await contentCache.keys()) {
-    var key = request.url.substring(origin.length + 1);
-    if (key == "") {
-      key = "/";
-    }
+  const resources = [];
+  const contentCache = await caches.open(CACHE_NAME);
+  const currentContent = {};
+  for (const request of await contentCache.keys()) {
+    let key = request.url.substring(self.location.origin.length + 1);
+    if (key === "") key = "/";
     currentContent[key] = true;
   }
-  for (var resourceKey of Object.keys(RESOURCES)) {
-    if (!currentContent[resourceKey]) {
-      resources.push(resourceKey);
-    }
+  for (const resourceKey of Object.keys(RESOURCES)) {
+    if (!currentContent[resourceKey]) resources.push(resourceKey);
   }
   return contentCache.addAll(resources);
-}
-// Attempt to download the resource online before falling back to
-// the offline cache.
-function onlineFirst(event) {
-  return event.respondWith(
-    fetch(event.request).then((response) => {
-      return caches.open(CACHE_NAME).then((cache) => {
-        cache.put(event.request, response.clone());
-        return response;
-      });
-    }).catch((error) => {
-      return caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((response) => {
-          if (response != null) {
-            return response;
-          }
-          throw error;
-        });
-      });
-    })
-  );
 }
