@@ -1,2 +1,8 @@
 .env
 node_modules
+# Ignorar TODOS los build dentro de frontend
+/frontend/build/*
+
+# PERMITIR solo web
+!/frontend/build/web/
+!/frontend/build/web/**
