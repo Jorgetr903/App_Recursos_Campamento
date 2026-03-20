@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../screens/detalle_recurso_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
@@ -24,12 +25,19 @@ class ResourceScreen extends StatelessWidget {
   });
 
   Future<void> _downloadFile(String url, String filename) async {
+    if (kIsWeb) {
+      await launchUrl(
+        Uri.parse(url),
+        webOnlyWindowName: '_blank',
+      );
+      return;
+    }
+
     final dir = await getApplicationDocumentsDirectory();
     final filePath = '${dir.path}/$filename';
     final response = await http.get(Uri.parse(url));
     final file = File(filePath);
     await file.writeAsBytes(response.bodyBytes);
-    // Aquí puedes mostrar un Snackbar indicando que se descargó
   }
 
   void _shareFile(String url) {
@@ -39,12 +47,23 @@ class ResourceScreen extends StatelessWidget {
   // 🔹 Función para abrir PDFs, recibe context
   Future<void> _openPdf(BuildContext context, String url) async {
     final uri = Uri.parse(url);
+
+    if (kIsWeb) {
+      await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
+      return;
+    }
+
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir el PDF")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No se pudo abrir el PDF")),
+        );
+      }
     }
   }
   
