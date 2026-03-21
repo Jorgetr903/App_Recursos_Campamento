@@ -10,7 +10,7 @@ import '../screens/detalle_recurso_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
 import '../web_utils.dart'
-    if (dart.library.io) 'web_utils_stub.dart';
+    if (dart.library.io) '../web_utils_stub.dart';
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
