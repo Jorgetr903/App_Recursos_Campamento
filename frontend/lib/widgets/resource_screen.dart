@@ -113,6 +113,7 @@ class ResourceScreen extends StatelessWidget {
               ),
               // 🔹 Aquí abrimos PDFs directamente en navegador / PWA
               onTap: () {
+                print('TAP: ${recurso.archivoUrl}');
                 if (recurso.archivoUrl.toLowerCase().endsWith('.pdf')) {
                   _openPdf(context, recurso.fullUrl);
                 } else {
