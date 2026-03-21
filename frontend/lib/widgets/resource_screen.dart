@@ -9,6 +9,9 @@ import 'package:http/http.dart' as http;
 import '../screens/detalle_recurso_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
+import '../web_utils.dart'
+    if (dart.library.io) 'web_utils_stub.dart';
+
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
@@ -26,13 +29,9 @@ class ResourceScreen extends StatelessWidget {
 
   Future<void> _downloadFile(String url, String filename) async {
     if (kIsWeb) {
-      await launchUrl(
-        Uri.parse(url),
-        webOnlyWindowName: '_blank',
-      );
+      openUrlInNewTab(url);
       return;
     }
-
     final dir = await getApplicationDocumentsDirectory();
     final filePath = '${dir.path}/$filename';
     final response = await http.get(Uri.parse(url));
@@ -46,18 +45,14 @@ class ResourceScreen extends StatelessWidget {
 
   // 🔹 Función para abrir PDFs, recibe context
   Future<void> _openPdf(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-
+    print('_openPdf llamado con url: $url');
     if (kIsWeb) {
-      await launchUrl(
-        uri,
-        webOnlyWindowName: '_blank',
-      );
+      // Llamada directa a window.open via JS interop
+      openUrlInNewTab(url);
       return;
     }
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +61,7 @@ class ResourceScreen extends StatelessWidget {
       }
     }
   }
-  
+
 
   @override
   Widget build(BuildContext context) {
