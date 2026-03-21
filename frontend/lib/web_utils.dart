@@ -1,6 +1,6 @@
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'dart:js' as js;
 
 void openUrlInNewTab(String url) {
-  html.window.open(url, '_blank');
+  js.context.callMethod('openPdfUrl', [url]);
 }
