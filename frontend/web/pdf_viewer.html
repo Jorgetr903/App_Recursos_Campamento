@@ -53,161 +53,161 @@
     if (!pdfUrl) {
       loading.textContent = 'No se especificó ningún PDF.';
       loading.id = 'error';
-      return;
-    }
+    }else{
 
-    // Estado global
-    const pages = []; // { page, canvas, renderTask }
-    let scale = 1;
-    let baseScale = 1;
-    let renderScheduled = false;
-    let renderDebounceTimer = null;
+        // Estado global
+        const pages = []; // { page, canvas, renderTask }
+        let scale = 1;
+        let baseScale = 1;
+        let renderScheduled = false;
+        let renderDebounceTimer = null;
 
-    // ── Renderizado con cancelación ──────────────────────────
-    async function renderPage(entry) {
-      // Cancelar render anterior si sigue activo
-      if (entry.renderTask) {
-        try { entry.renderTask.cancel(); } catch (_) {}
-        entry.renderTask = null;
-      }
-
-      const dpr = window.devicePixelRatio || 1;
-      const viewport = entry.page.getViewport({ scale: scale * dpr });
-
-      entry.canvas.width  = viewport.width;
-      entry.canvas.height = viewport.height;
-      entry.canvas.style.width  = (viewport.width  / dpr) + 'px';
-      entry.canvas.style.height = (viewport.height / dpr) + 'px';
-      entry.wrapper.style.width  = (viewport.width  / dpr) + 'px';
-      entry.wrapper.style.height = (viewport.height / dpr) + 'px';
-
-      const ctx = entry.canvas.getContext('2d');
-      ctx.clearRect(0, 0, entry.canvas.width, entry.canvas.height);
-
-      const task = entry.page.render({ canvasContext: ctx, viewport });
-      entry.renderTask = task;
-
-      try {
-        await task.promise;
-      } catch (e) {
-        if (e?.name !== 'RenderingCancelledException') {
-          console.error('Error renderizando página:', e);
-        }
-      } finally {
-        if (entry.renderTask === task) entry.renderTask = null;
-      }
-    }
-
-    function scheduleRender() {
-      clearTimeout(renderDebounceTimer);
-      renderDebounceTimer = setTimeout(() => {
-        pages.forEach(renderPage);
-      }, 80);
-    }
-
-    // ── Carga del PDF ────────────────────────────────────────
-    try {
-      const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-      loading.remove();
-
-      const containerWidth = container.clientWidth - 32; // padding
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport1 = page.getViewport({ scale: 1 });
-        if (i === 1) {
-          baseScale = containerWidth / viewport1.width;
-          scale = baseScale;
+        // ── Renderizado con cancelación ──────────────────────────
+        async function renderPage(entry) {
+        // Cancelar render anterior si sigue activo
+        if (entry.renderTask) {
+            try { entry.renderTask.cancel(); } catch (_) {}
+            entry.renderTask = null;
         }
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'page-wrapper';
-        const canvas = document.createElement('canvas');
-        wrapper.appendChild(canvas);
-        container.appendChild(wrapper);
+        const dpr = window.devicePixelRatio || 1;
+        const viewport = entry.page.getViewport({ scale: scale * dpr });
 
-        const entry = { page, canvas, wrapper, renderTask: null };
-        pages.push(entry);
-        await renderPage(entry);
-      }
-    } catch (e) {
-      loading.textContent = 'Error al cargar el PDF: ' + e.message;
-      loading.id = 'error';
-    }
+        entry.canvas.width  = viewport.width;
+        entry.canvas.height = viewport.height;
+        entry.canvas.style.width  = (viewport.width  / dpr) + 'px';
+        entry.canvas.style.height = (viewport.height / dpr) + 'px';
+        entry.wrapper.style.width  = (viewport.width  / dpr) + 'px';
+        entry.wrapper.style.height = (viewport.height / dpr) + 'px';
 
-    // ── Zoom helper ──────────────────────────────────────────
-    function applyZoom(factor, focalX, focalY) {
-      const newScale = Math.min(Math.max(scale * factor, baseScale * 0.5), baseScale * 8);
-      if (newScale === scale) return;
+        const ctx = entry.canvas.getContext('2d');
+        ctx.clearRect(0, 0, entry.canvas.width, entry.canvas.height);
 
-      const rect = container.getBoundingClientRect();
-      const scrollX = container.scrollLeft + (focalX - rect.left);
-      const scrollY = container.scrollTop  + (focalY - rect.top);
-      const zoomRatio = newScale / scale;
+        const task = entry.page.render({ canvasContext: ctx, viewport });
+        entry.renderTask = task;
 
-      scale = newScale;
-      scheduleRender();
+        try {
+            await task.promise;
+        } catch (e) {
+            if (e?.name !== 'RenderingCancelledException') {
+            console.error('Error renderizando página:', e);
+            }
+        } finally {
+            if (entry.renderTask === task) entry.renderTask = null;
+        }
+        }
 
-      // Mantener el punto focal estático durante el zoom
-      requestAnimationFrame(() => {
-        container.scrollLeft = scrollX * zoomRatio - (focalX - rect.left);
-        container.scrollTop  = scrollY * zoomRatio - (focalY - rect.top);
-      });
-    }
+        function scheduleRender() {
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+            pages.forEach(renderPage);
+        }, 80);
+        }
 
-    // ── Zoom con rueda de ratón ──────────────────────────────
-    container.addEventListener('wheel', e => {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.12 : 0.89;
-      applyZoom(factor, e.clientX, e.clientY);
-    }, { passive: false });
+        // ── Carga del PDF ────────────────────────────────────────
+        try {
+        const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+        loading.remove();
 
-    // ── Pinch-to-zoom en móvil ───────────────────────────────
-    let lastDistance = null;
-    let lastPinchCenter = null;
+        const containerWidth = container.clientWidth - 32; // padding
 
-    container.addEventListener('touchstart', e => {
-      if (e.touches.length === 2) {
-        const [t0, t1] = e.touches;
-        lastDistance = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
-        lastPinchCenter = {
-          x: (t0.clientX + t1.clientX) / 2,
-          y: (t0.clientY + t1.clientY) / 2
-        };
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport1 = page.getViewport({ scale: 1 });
+            if (i === 1) {
+            baseScale = containerWidth / viewport1.width;
+            scale = baseScale;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'page-wrapper';
+            const canvas = document.createElement('canvas');
+            wrapper.appendChild(canvas);
+            container.appendChild(wrapper);
+
+            const entry = { page, canvas, wrapper, renderTask: null };
+            pages.push(entry);
+            await renderPage(entry);
+        }
+        } catch (e) {
+        loading.textContent = 'Error al cargar el PDF: ' + e.message;
+        loading.id = 'error';
+        }
+
+        // ── Zoom helper ──────────────────────────────────────────
+        function applyZoom(factor, focalX, focalY) {
+        const newScale = Math.min(Math.max(scale * factor, baseScale * 0.5), baseScale * 8);
+        if (newScale === scale) return;
+
+        const rect = container.getBoundingClientRect();
+        const scrollX = container.scrollLeft + (focalX - rect.left);
+        const scrollY = container.scrollTop  + (focalY - rect.top);
+        const zoomRatio = newScale / scale;
+
+        scale = newScale;
+        scheduleRender();
+
+        // Mantener el punto focal estático durante el zoom
+        requestAnimationFrame(() => {
+            container.scrollLeft = scrollX * zoomRatio - (focalX - rect.left);
+            container.scrollTop  = scrollY * zoomRatio - (focalY - rect.top);
+        });
+        }
+
+        // ── Zoom con rueda de ratón ──────────────────────────────
+        container.addEventListener('wheel', e => {
         e.preventDefault();
-      }
-    }, { passive: false });
+        const factor = e.deltaY < 0 ? 1.12 : 0.89;
+        applyZoom(factor, e.clientX, e.clientY);
+        }, { passive: false });
 
-    container.addEventListener('touchmove', e => {
-      if (e.touches.length !== 2 || !lastDistance) return;
-      e.preventDefault();
+        // ── Pinch-to-zoom en móvil ───────────────────────────────
+        let lastDistance = null;
+        let lastPinchCenter = null;
 
-      const [t0, t1] = e.touches;
-      const newDistance = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
-      const center = {
-        x: (t0.clientX + t1.clientX) / 2,
-        y: (t0.clientY + t1.clientY) / 2
-      };
+        container.addEventListener('touchstart', e => {
+        if (e.touches.length === 2) {
+            const [t0, t1] = e.touches;
+            lastDistance = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+            lastPinchCenter = {
+            x: (t0.clientX + t1.clientX) / 2,
+            y: (t0.clientY + t1.clientY) / 2
+            };
+            e.preventDefault();
+        }
+        }, { passive: false });
 
-      const factor = newDistance / lastDistance;
-      applyZoom(factor, center.x, center.y);
+        container.addEventListener('touchmove', e => {
+        if (e.touches.length !== 2 || !lastDistance) return;
+        e.preventDefault();
 
-      lastDistance = newDistance;
-      lastPinchCenter = center;
-    }, { passive: false });
+        const [t0, t1] = e.touches;
+        const newDistance = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+        const center = {
+            x: (t0.clientX + t1.clientX) / 2,
+            y: (t0.clientY + t1.clientY) / 2
+        };
 
-    container.addEventListener('touchend', e => {
-      if (e.touches.length < 2) {
-        lastDistance = null;
-        lastPinchCenter = null;
-      }
-    });
+        const factor = newDistance / lastDistance;
+        applyZoom(factor, center.x, center.y);
 
-    // ── Re-render en resize ──────────────────────────────────
-    const resizeObserver = new ResizeObserver(() => {
-      scheduleRender();
-    });
-    resizeObserver.observe(container);
+        lastDistance = newDistance;
+        lastPinchCenter = center;
+        }, { passive: false });
+
+        container.addEventListener('touchend', e => {
+        if (e.touches.length < 2) {
+            lastDistance = null;
+            lastPinchCenter = null;
+        }
+        });
+
+        // ── Re-render en resize ──────────────────────────────────
+        const resizeObserver = new ResizeObserver(() => {
+        scheduleRender();
+        });
+        resizeObserver.observe(container);
+    }
   </script>
 </body>
 </html>
