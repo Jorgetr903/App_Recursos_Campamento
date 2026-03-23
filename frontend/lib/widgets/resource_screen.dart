@@ -121,8 +121,6 @@ class ResourceScreen extends StatelessWidget {
               onTap: () {
                 if (isPdf) {
                   if (kIsWeb) {
-                    _openPdf(recurso.fullUrl);
-                  } else {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
