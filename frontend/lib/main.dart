@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Recursos Monitores',
+      title: 'CSP',
       theme: ThemeData(
         primaryColor: const Color(0xFF4CAF50), // Verde principal
         scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Fondo claro
