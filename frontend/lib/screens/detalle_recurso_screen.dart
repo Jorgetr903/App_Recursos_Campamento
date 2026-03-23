@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/recurso_model.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class DetalleRecursoScreen extends StatefulWidget {
   final Recurso recurso;
@@ -11,51 +12,34 @@ class DetalleRecursoScreen extends StatefulWidget {
 }
 
 class _DetalleRecursoScreenState extends State<DetalleRecursoScreen> {
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadRecurso();
-  }
-
-  Future<void> loadRecurso() async {
-    // Solo PDFs, no audio ni video
-    await Future.delayed(const Duration(milliseconds: 500)); // simula carga
-    setState(() => loading = false);
-  }
+  bool _isPdf() => widget.recurso.fullUrl.toLowerCase().endsWith('.pdf');
 
   @override
   Widget build(BuildContext context) {
-    Widget content;
-
-    if (loading) {
-      content = const Center(child: CircularProgressIndicator());
-    } else if (widget.recurso.fullUrl.endsWith('.pdf')) {
-      // Muestra el PDF directamente
-      content = SfPdfViewer.network(
-        widget.recurso.fullUrl,
-        canShowScrollHead: true,
-        canShowScrollStatus: true,
-      );
-    } else {
-      content = const Center(child: Text("Tipo de archivo no soportado"));
-    }
-
     return Scaffold(
       appBar: AppBar(title: Text(widget.recurso.titulo)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            if (widget.recurso.descripcion != null &&
-                widget.recurso.descripcion!.isNotEmpty)
-              Text(widget.recurso.descripcion!, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            Expanded(child: content),
-          ],
-        ),
-      ),
+      body: _isPdf() ? _buildPdfViewer() : const Center(child: Text("Tipo de archivo no soportado")),
     );
+  }
+
+  Widget _buildPdfViewer() {
+    if (kIsWeb) {
+      final encodedUrl = Uri.encodeComponent(widget.recurso.fullUrl);
+      final iframeSrc = 'pdf_viewer.html?file=$encodedUrl';
+      // ignore: undefined_prefixed_name, avoid_web_libraries_in_flutter
+      return HtmlElementView.fromTagName(
+        tagName: 'iframe',
+        onElementCreated: (element) {
+          // ignore: avoid_web_libraries_in_flutter
+          final iframe = element as dynamic;
+          iframe.src = iframeSrc;
+          iframe.style.border = 'none';
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+        },
+      );
+    } else {
+      return SfPdfViewer.network(widget.recurso.fullUrl);
+    }
   }
 }
