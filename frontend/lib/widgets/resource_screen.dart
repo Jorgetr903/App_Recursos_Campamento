@@ -52,16 +52,8 @@ class ResourceScreen extends StatelessWidget {
   }
 
   // 🔹 Función para abrir PDFs en Web y móviles
-  Future<void> _openPdf(String url) async {
-    final iframe = html.IFrameElement()
-    ..src = url
-    ..style.border = 'none'
-    ..width = '100%'
-    ..height = '100%';
-  
-    // Limpiar la app actual y mostrar solo el PDF
-    html.document.body!.children.clear();
-    html.document.body!.append(iframe);
+  Future<void> _openPdf(BuildContext context, String url) async {
+    await launchUrlString(url, webOnlyWindowName: '_blank');
   }
 
   // 🔹 Verifica si un recurso es PDF de forma robusta
@@ -121,12 +113,7 @@ class ResourceScreen extends StatelessWidget {
               onTap: () {
                 if (isPdf) {
                   if (kIsWeb) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetalleRecursoScreen(recurso: recurso),
-                      ),
-                    );
+                    _openPdf(context, recurso.fullUrl);
                   }
                 } else {
                   Navigator.push(
