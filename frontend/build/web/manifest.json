@@ -10,19 +10,15 @@
     "prefer_related_applications": false,
     "icons": [
         {
-            "src": "icons/logoCSP.png",
+            "src": "icons/logoCSPfondo.png",
             "sizes": "any",
-            "type": "image/png",
-            "background_color": "#FFFF00",
-            "theme_color": "#FFFF00"
+            "type": "image/png"
         },
         {
-            "src": "icons/logoCSP.png",
+            "src": "icons/logoCSPfondo.png",
             "sizes": "any",
             "type": "image/png",
-            "purpose": "maskable",
-            "background_color": "#FFFF00",
-            "theme_color": "#FFFF00"
+            "purpose": "maskable"
         }
     ]
 }

@@ -13,6 +13,8 @@ import '../web_utils_stub.dart'
     if (dart.library.js_interop) '../web_utils.dart';
 import 'package:web/web.dart' as web;
 import 'dart:io';
+import 'dart:html' as html;
+
 
 
 class ResourceScreen extends StatelessWidget {
@@ -50,8 +52,16 @@ class ResourceScreen extends StatelessWidget {
   }
 
   // 🔹 Función para abrir PDFs en Web y móviles
-  Future<void> _openPdf(BuildContext context, String url) async {
-    await launchUrlString(url, webOnlyWindowName: '_blank');
+  Future<void> _openPdf(String url) async {
+    final iframe = html.IFrameElement()
+    ..src = url
+    ..style.border = 'none'
+    ..width = '100%'
+    ..height = '100%';
+  
+    // Limpiar la app actual y mostrar solo el PDF
+    html.document.body!.children.clear();
+    html.document.body!.append(iframe);
   }
 
   // 🔹 Verifica si un recurso es PDF de forma robusta
@@ -110,12 +120,16 @@ class ResourceScreen extends StatelessWidget {
               // 🔹 Abrir PDFs o navegar a detalle
               onTap: () {
                 if (isPdf) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DetalleRecursoScreen(recurso: recurso),
-                    ),
-                  );
+                  if (kIsWeb) {
+                    _openPdf(recurso.fullUrl);
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DetalleRecursoScreen(recurso: recurso),
+                      ),
+                    );
+                  }
                 } else {
                   Navigator.push(
                     context,
