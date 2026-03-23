@@ -101,7 +101,7 @@
         clearTimeout(renderDebounceTimer);
         renderDebounceTimer = setTimeout(() => {
             pages.forEach(renderPage);
-        }, 80);
+        }, 50);
         }
 
         // ── Carga del PDF ────────────────────────────────────────
@@ -136,22 +136,23 @@
 
         // ── Zoom helper ──────────────────────────────────────────
         function applyZoom(factor, focalX, focalY) {
-        const newScale = Math.min(Math.max(scale * factor, baseScale * 0.5), baseScale * 8);
-        if (newScale === scale) return;
+            const newScale = Math.min(Math.max(scale * factor, baseScale * 0.5), baseScale * 8);
+            if (Math.abs(newScale - scale) < 0.001) return;
 
-        const rect = container.getBoundingClientRect();
-        const scrollX = container.scrollLeft + (focalX - rect.left);
-        const scrollY = container.scrollTop  + (focalY - rect.top);
-        const zoomRatio = newScale / scale;
+            const rect = container.getBoundingClientRect();
+            
+            // Posición del punto focal relativa al contenido (no al viewport)
+            const contentX = container.scrollLeft + (focalX - rect.left);
+            const contentY = container.scrollTop + (focalY - rect.top);
+            
+            const zoomRatio = newScale / scale;
+            scale = newScale;
+            
+            scheduleRender();
 
-        scale = newScale;
-        scheduleRender();
-
-        // Mantener el punto focal estático durante el zoom
-        requestAnimationFrame(() => {
-            container.scrollLeft = scrollX * zoomRatio - (focalX - rect.left);
-            container.scrollTop  = scrollY * zoomRatio - (focalY - rect.top);
-        });
+            // Ajustar scroll para mantener el punto focal estático
+            container.scrollLeft = contentX * zoomRatio - (focalX - rect.left);
+            container.scrollTop = contentY * zoomRatio - (focalY - rect.top);
         }
 
         // ── Zoom con rueda de ratón ──────────────────────────────
