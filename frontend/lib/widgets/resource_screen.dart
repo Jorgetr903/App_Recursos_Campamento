@@ -110,7 +110,12 @@ class ResourceScreen extends StatelessWidget {
               // 🔹 Abrir PDFs o navegar a detalle
               onTap: () {
                 if (isPdf) {
-                  _openPdf(context, recurso.fullUrl);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetalleRecursoScreen(recurso: recurso),
+                    ),
+                  );
                 } else {
                   Navigator.push(
                     context,

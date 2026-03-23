@@ -3,7 +3,7 @@
     "short_name": "CSP",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#FFFF00",
+    "background_color": "#FFFFFF",
     "theme_color": "#4CAF50",
     "description": "App de recursos para monitores de campamento",
     "orientation": "portrait-primary",
@@ -12,13 +12,17 @@
         {
             "src": "icons/logoCSP.png",
             "sizes": "any",
-            "type": "image/png"
+            "type": "image/png",
+            "background_color": "#FFFF00",
+            "theme_color": "#FFFF00"
         },
         {
             "src": "icons/logoCSP.png",
             "sizes": "any",
             "type": "image/png",
-            "purpose": "maskable"
+            "purpose": "maskable",
+            "background_color": "#FFFF00",
+            "theme_color": "#FFFF00"
         }
     ]
 }
