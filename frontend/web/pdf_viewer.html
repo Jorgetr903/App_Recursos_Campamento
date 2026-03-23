@@ -20,6 +20,9 @@
       margin-bottom: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       background: white;
+
+      max-width: 100%;
+      height: auto;
     }
     #loading {
       color: white;
@@ -60,15 +63,18 @@
       pdfjsLib.getDocument(pdfUrl).promise.then(async (pdf) => {
         loading.remove();
         for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+            const page = await pdf.getPage(i);
+            const containerWidth = container.clientWidth;
+            const viewport = page.getViewport({ scale: 1 });
+            const scale = containerWidth / viewport.width;
+            const scaledViewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = scaledViewport.width;
+            canvas.height = scaledViewport.height;
           container.appendChild(canvas);
           await page.render({
             canvasContext: canvas.getContext('2d'),
-            viewport
+            viewport: scaledViewport
           }).promise;
         }
       }).catch((err) => {
@@ -79,6 +85,10 @@
         container.appendChild(errDiv);
       });
     }
+      window.addEventListener('resize', () => {
+      location.reload();
+      });
   </script>
 </body>
 </html>
+
