@@ -3,7 +3,7 @@
     "short_name": "CSP",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#FFFF00",
     "theme_color": "#4CAF50",
     "description": "App de recursos para monitores de campamento",
     "orientation": "portrait-primary",

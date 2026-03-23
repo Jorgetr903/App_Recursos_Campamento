@@ -11,6 +11,9 @@ import 'package:url_launcher/url_launcher_string.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../web_utils_stub.dart'
     if (dart.library.js_interop) '../web_utils.dart';
+import 'package:web/web.dart' as web;
+import 'dart:io';
+
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
@@ -28,9 +31,18 @@ class ResourceScreen extends StatelessWidget {
 
   Future<void> _downloadFile(String url, String filename) async {
     if (kIsWeb) {
-      downloadUrl(url, filename);
+      final anchor = web.HTMLAnchorElement()
+        ..href = url
+        ..download = filename
+        ..target = '_blank';
+      anchor.click();
       return;
     }
+    final dir = await getApplicationDocumentsDirectory();
+    final filePath = '${dir.path}/$filename';
+    final response = await http.get(Uri.parse(url));
+    final file = File(filePath);
+    await file.writeAsBytes(response.bodyBytes);
   }
 
   void _shareFile(String url) {

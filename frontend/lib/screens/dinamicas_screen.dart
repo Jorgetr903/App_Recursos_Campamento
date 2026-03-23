@@ -107,76 +107,91 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dinámicas"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            mainNavKey.currentState?.setIndex(0);
-          },
+    return WillPopScope(
+      onWillPop: () async {
+        mainNavKey.currentState?.setIndex(0);
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Dinámicas"),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              mainNavKey.currentState?.setIndex(0);
+            },
+          ),
         ),
-      ),
-      body: Column(
-        children: [
-          // Barra de búsqueda
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Buscar dinámicas...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+        body: Column(
+          children: [
+            // 🔍 Barra de búsqueda
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: "Buscar dinámicas...",
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                onSubmitted: (value) {
+                  setState(() => searchQuery = value);
+                  fetchYearsAndRecursos();
+                },
               ),
-              onSubmitted: (value) {
-                setState(() => searchQuery = value);
-                fetchYearsAndRecursos();
-              },
             ),
-          ),
-          // Filtros
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                DropdownButton<int>(
-                  hint: const Text("Año"),
-                  value: selectedAnio,
-                  items: availableYears
-                      .map((a) => DropdownMenuItem(value: a, child: Text("$a")))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() => selectedAnio = v);
-                    fetchYearsAndRecursos();
-                  },
-                ),
-                DropdownButton<String>(
-                  hint: const Text("Grupo"),
-                  value: selectedGrupo,
-                  items: grupos
-                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() => selectedGrupo = v);
-                    fetchYearsAndRecursos();
-                  },
-                ),
-              ],
+
+            // 🎯 Filtros
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  DropdownButton<int>(
+                    hint: const Text("Año"),
+                    value: selectedAnio,
+                    items: availableYears
+                        .map((a) => DropdownMenuItem(
+                              value: a,
+                              child: Text("$a"),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() => selectedAnio = v);
+                      fetchYearsAndRecursos();
+                    },
+                  ),
+                  DropdownButton<String>(
+                    hint: const Text("Grupo"),
+                    value: selectedGrupo,
+                    items: grupos
+                        .map((g) => DropdownMenuItem(
+                              value: g,
+                              child: Text(g),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() => selectedGrupo = v);
+                      fetchYearsAndRecursos();
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: ResourceScreen(
-              recursos: recursos,
-              controller: _scrollController,
-              loading: loading,
-              hasMore: hasMore,
+
+            // 📄 Lista
+            Expanded(
+              child: ResourceScreen(
+                recursos: recursos,
+                controller: _scrollController,
+                loading: loading,
+                hasMore: hasMore,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
