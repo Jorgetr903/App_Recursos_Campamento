@@ -13,7 +13,7 @@ import '../web_utils_stub.dart'
     if (dart.library.js_interop) '../web_utils.dart';
 import 'package:web/web.dart' as web;
 import 'dart:io';
-import 'dart:html' as html;
+
 
 
 
@@ -112,9 +112,7 @@ class ResourceScreen extends StatelessWidget {
               // 🔹 Abrir PDFs o navegar a detalle
               onTap: () {
                 if (isPdf) {
-                  if (kIsWeb) {
-                    _openPdf(context, recurso.fullUrl);
-                  }
+                  _openPdf(context, recurso.fullUrl);
                 } else {
                   Navigator.push(
                     context,
