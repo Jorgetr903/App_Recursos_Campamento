@@ -1,6 +1,7 @@
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
+import 'dart:js_interop';
 
-void openUrlInNewTab(String url) {
-  js.context.callMethod('openPdfUrl', [url]);
-}
+@JS('openPdfUrl')
+external void openUrlInNewTab(String url);
+
+@JS('downloadPdfUrl')
+external void downloadUrl(String url, String filename);

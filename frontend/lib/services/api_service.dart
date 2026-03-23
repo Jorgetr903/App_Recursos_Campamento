@@ -1,6 +1,5 @@
 // lib/services/api_service.dart
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/recurso_model.dart';
 
@@ -56,8 +55,6 @@ class ApiService {
       } else {
         throw Exception("Error al obtener recurso $id");
       }
-    } on SocketException {
-      throw Exception("No hay conexión al servidor");
     } catch (e) {
       throw Exception("Error inesperado: $e");
     }

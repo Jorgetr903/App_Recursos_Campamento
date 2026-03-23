@@ -25,6 +25,15 @@
       a.click();
       document.body.removeChild(a);
     }
+
+    function downloadPdfUrl(url, filename) {
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'archivo.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   </script>
 </body>
 </html>

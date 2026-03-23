@@ -4,13 +4,13 @@ import '../models/recurso_model.dart';
 import '../providers/favoritos_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../screens/detalle_recurso_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
-import '../web_utils.dart'
-    if (dart.library.io) '../web_utils_stub.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../web_utils_stub.dart'
+    if (dart.library.js_interop) '../web_utils.dart';
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
@@ -28,39 +28,25 @@ class ResourceScreen extends StatelessWidget {
 
   Future<void> _downloadFile(String url, String filename) async {
     if (kIsWeb) {
-      openUrlInNewTab(url);
+      downloadUrl(url, filename);
       return;
     }
-    final dir = await getApplicationDocumentsDirectory();
-    final filePath = '${dir.path}/$filename';
-    final response = await http.get(Uri.parse(url));
-    final file = File(filePath);
-    await file.writeAsBytes(response.bodyBytes);
   }
 
   void _shareFile(String url) {
     Share.share(url);
   }
 
-  // 🔹 Función para abrir PDFs, recibe context
+  // 🔹 Función para abrir PDFs en Web y móviles
   Future<void> _openPdf(BuildContext context, String url) async {
-    print('_openPdf llamado con url: $url');
-    if (kIsWeb) {
-      // Llamada directa a window.open via JS interop
-      openUrlInNewTab(url);
-      return;
-    }
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No se pudo abrir el PDF")),
-        );
-      }
-    }
+    await launchUrlString(url, webOnlyWindowName: '_blank');
   }
 
+  // 🔹 Verifica si un recurso es PDF de forma robusta
+  bool _isPdf(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+    return path.endsWith('.pdf');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +63,7 @@ class ResourceScreen extends StatelessWidget {
         if (index < recursos.length) {
           final recurso = recursos[index];
           final esFavorito = favoritosProvider.esFavorito(recurso);
+          final isPdf = _isPdf(recurso.archivoUrl);
 
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -84,12 +71,10 @@ class ResourceScreen extends StatelessWidget {
             elevation: 4,
             child: ListTile(
               leading: Icon(
-                recurso.archivoUrl.toLowerCase().endsWith('.pdf')
-                    ? Icons.picture_as_pdf
-                    : Icons.insert_drive_file,
+                isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
               ),
               title: Text(recurso.titulo),
-              subtitle: recurso.descripcion != null ? Text(recurso.descripcion!) : null,
+              subtitle: Text(recurso.archivoUrl),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -110,10 +95,9 @@ class ResourceScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              // 🔹 Aquí abrimos PDFs directamente en navegador / PWA
+              // 🔹 Abrir PDFs o navegar a detalle
               onTap: () {
-                print('TAP: ${recurso.archivoUrl}');
-                if (recurso.archivoUrl.toLowerCase().endsWith('.pdf')) {
+                if (isPdf) {
                   _openPdf(context, recurso.fullUrl);
                 } else {
                   Navigator.push(
