@@ -74,7 +74,7 @@ class ResourceScreen extends StatelessWidget {
                 isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
               ),
               title: Text(recurso.titulo),
-              subtitle: Text(recurso.archivoUrl),
+              subtitle: recurso.descripcion != null ? Text(recurso.descripcion!) : null,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
