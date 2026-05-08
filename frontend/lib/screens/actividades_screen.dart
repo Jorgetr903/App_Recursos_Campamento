@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/recurso_model.dart';
+import '../widgets/debounced_search_field.dart';
 import '../widgets/resource_screen.dart';
 import '../main.dart';
 
@@ -21,6 +22,7 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
 
   int currentPage = 1;
   bool hasMore = true;
+  int _requestId = 0;
   final ScrollController _scrollController = ScrollController();
 
   final momentos = ["Mañana", "Tarde", "Velada", "Olimpiada"];
@@ -30,7 +32,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
     super.initState();
     fetchYearsAndRecursos();
 
-    // Listener para detectar cuando llegamos al final
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
@@ -41,8 +42,15 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> fetchYearsAndRecursos() async {
+    final requestId = ++_requestId;
+
     setState(() {
       loading = true;
       currentPage = 1;
@@ -61,6 +69,8 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         limit: 50,
       );
 
+      if (!mounted || requestId != _requestId) return;
+
       setState(() {
         availableYears = years;
         recursos = data;
@@ -68,6 +78,8 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         hasMore = data.length == 50;
       });
     } catch (e) {
+      if (!mounted || requestId != _requestId) return;
+
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
@@ -75,7 +87,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
     }
   }
 
-  /// Carga más recursos (scroll infinito)
   Future<void> fetchMoreRecursos() async {
     if (!hasMore) return;
 
@@ -91,12 +102,17 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         page: currentPage,
         limit: 50,
       );
+
+      if (!mounted) return;
+
       setState(() {
         recursos.addAll(data);
         loading = false;
         hasMore = data.length == 50;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
@@ -104,13 +120,19 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
     }
   }
 
+  void _onSearchChanged(String value) {
+    if (searchQuery == value) return;
+
+    setState(() => searchQuery = value);
+    fetchYearsAndRecursos();
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Cuando el usuario pulsa el botón físico atrás
-        mainNavKey.currentState?.setIndex(0); // volver al dashboard
-        return false; // evita que se cierre la app
+        mainNavKey.currentState?.setIndex(0);
+        return false;
       },
       child: Scaffold(
         appBar: AppBar(
@@ -124,25 +146,13 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
         ),
         body: Column(
           children: [
-            // 🔍 Barra de búsqueda
             Padding(
               padding: const EdgeInsets.all(8),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: "Buscar actividades...",
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onSubmitted: (value) {
-                  setState(() => searchQuery = value);
-                  fetchYearsAndRecursos();
-                },
+              child: DebouncedSearchField(
+                hintText: "Buscar actividades...",
+                onChanged: _onSearchChanged,
               ),
             ),
-
-            // 🎯 Filtros
             Padding(
               padding: const EdgeInsets.all(8),
               child: Wrap(
@@ -180,8 +190,6 @@ class _ActividadesScreenState extends State<ActividadesScreen> {
                 ],
               ),
             ),
-
-            // 📄 Lista con scroll infinito
             Expanded(
               child: ResourceScreen(
                 recursos: recursos,
