@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/recurso_model.dart';
+import '../widgets/debounced_search_field.dart';
 import '../widgets/resource_screen.dart';
 import '../main.dart';
 
@@ -21,6 +22,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
 
   int currentPage = 1;
   bool hasMore = true;
+  int _requestId = 0;
   final ScrollController _scrollController = ScrollController();
 
   final grupos = ["Pequeños", "Medianos", "Mayores"];
@@ -30,7 +32,6 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
     super.initState();
     fetchYearsAndRecursos();
 
-    // Listener para detectar cuando llegamos al final
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
@@ -41,7 +42,15 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> fetchYearsAndRecursos() async {
+    final requestId = ++_requestId;
+
     setState(() {
       loading = true;
       currentPage = 1;
@@ -51,25 +60,29 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
 
     try {
       final years = await ApiService.getYearsDinamicas();
+      final anioFiltro =
+          selectedAnio ?? (years.isNotEmpty ? years.first : null);
       final data = await ApiService.getRecursos(
         tipo: "dinamica",
-        anio: selectedAnio,
+        anio: anioFiltro,
         grupo: selectedGrupo,
         q: searchQuery.isNotEmpty ? searchQuery : null,
         page: currentPage,
         limit: 50,
       );
 
+      if (!mounted || requestId != _requestId) return;
+
       setState(() {
         availableYears = years;
-        if (selectedAnio == null && years.isNotEmpty) {
-          selectedAnio = years.first; // inicializa con el más reciente
-        }
+        selectedAnio = anioFiltro;
         recursos = data;
         loading = false;
         hasMore = data.length == 50;
       });
     } catch (e) {
+      if (!mounted || requestId != _requestId) return;
+
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
@@ -92,17 +105,29 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
         page: currentPage,
         limit: 50,
       );
+
+      if (!mounted) return;
+
       setState(() {
         recursos.addAll(data);
         loading = false;
         hasMore = data.length == 50;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
     }
+  }
+
+  void _onSearchChanged(String value) {
+    if (searchQuery == value) return;
+
+    setState(() => searchQuery = value);
+    fetchYearsAndRecursos();
   }
 
   @override
@@ -124,25 +149,13 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
         ),
         body: Column(
           children: [
-            // 🔍 Barra de búsqueda
             Padding(
               padding: const EdgeInsets.all(8),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: "Buscar dinámicas...",
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onSubmitted: (value) {
-                  setState(() => searchQuery = value);
-                  fetchYearsAndRecursos();
-                },
+              child: DebouncedSearchField(
+                hintText: "Buscar dinámicas...",
+                onChanged: _onSearchChanged,
               ),
             ),
-
-            // 🎯 Filtros
             Padding(
               padding: const EdgeInsets.all(8),
               child: Wrap(
@@ -180,8 +193,6 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                 ],
               ),
             ),
-
-            // 📄 Lista
             Expanded(
               child: ResourceScreen(
                 recursos: recursos,
