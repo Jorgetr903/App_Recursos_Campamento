@@ -1,21 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../models/recurso_model.dart';
 import '../providers/favoritos_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import '../screens/detalle_recurso_screen.dart';
-import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher_string.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import '../services/download_service.dart';
+import '../services/resource_actions.dart';
 import '../web_utils_stub.dart'
     if (dart.library.js_interop) '../web_utils.dart';
-import 'package:web/web.dart' as web;
-import 'dart:io';
-
-
-
 
 class ResourceScreen extends StatelessWidget {
   final List<Recurso> recursos;
@@ -31,35 +24,30 @@ class ResourceScreen extends StatelessWidget {
     this.hasMore = false,
   });
 
-  Future<void> _downloadFile(String url, String filename) async {
+  Future<void> _downloadFile(Recurso recurso) async {
+    final downloadName = _downloadFilename(recurso.titulo, recurso.fullUrl);
+
     if (kIsWeb) {
-      final anchor = web.HTMLAnchorElement()
-        ..href = url
-        ..download = filename
-        ..target = '_blank';
-      anchor.click();
+      downloadUrl(recurso.downloadUrl, downloadName);
       return;
     }
-    final dir = await getApplicationDocumentsDirectory();
-    final filePath = '${dir.path}/$filename';
-    final response = await http.get(Uri.parse(url));
-    final file = File(filePath);
-    await file.writeAsBytes(response.bodyBytes);
+
+    await DownloadService.downloadFile(recurso.fullUrl, downloadName, null);
   }
 
   void _shareFile(String url) {
     Share.share(url);
   }
 
-  // 🔹 Función para abrir PDFs en Web y móviles
-  Future<void> _openPdf(BuildContext context, String url) async {
-    await launchUrlString(url, webOnlyWindowName: '_blank');
-  }
+  String _downloadFilename(String filename, String url) {
+    final trimmedName = filename.trim().isEmpty ? 'archivo' : filename.trim();
+    final safeName = trimmedName
+        .replaceAll(RegExp(r'[\\/:*?"<>|]+'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final hasPdfExtension = safeName.toLowerCase().endsWith('.pdf');
 
-  // 🔹 Verifica si un recurso es PDF de forma robusta
-  bool _isPdf(String url) {
-    final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
-    return path.endsWith('.pdf');
+    return isPdfUrl(url) && !hasPdfExtension ? '$safeName.pdf' : safeName;
   }
 
   @override
@@ -77,18 +65,21 @@ class ResourceScreen extends StatelessWidget {
         if (index < recursos.length) {
           final recurso = recursos[index];
           final esFavorito = favoritosProvider.esFavorito(recurso);
-          final isPdf = _isPdf(recurso.archivoUrl);
+          final isPdf = isPdfUrl(recurso.fullUrl);
 
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             elevation: 4,
             child: ListTile(
               leading: Icon(
                 isPdf ? Icons.picture_as_pdf : Icons.insert_drive_file,
               ),
               title: Text(recurso.titulo),
-              subtitle: recurso.descripcion != null ? Text(recurso.descripcion!) : null,
+              subtitle:
+                  recurso.descripcion != null ? Text(recurso.descripcion!) : null,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -105,37 +96,19 @@ class ResourceScreen extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.download),
-                    onPressed: () => _downloadFile(recurso.fullUrl, recurso.titulo),
+                    onPressed: () => _downloadFile(recurso),
                   ),
                 ],
               ),
-              // 🔹 Abrir PDFs o navegar a detalle
-              onTap: () {
-                if (isPdf) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DetalleRecursoScreen(recurso: recurso),
-                    ),
-                  );                
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DetalleRecursoScreen(recurso: recurso),
-                    ),
-                  );
-                }
-              },
+              onTap: () => openRecurso(context, recurso),
             ),
           );
-        } else {
-          // Loader al final de la lista
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          );
         }
+
+        return const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        );
       },
     );
   }
