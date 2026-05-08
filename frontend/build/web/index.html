@@ -26,10 +26,46 @@
       document.body.removeChild(a);
     }
 
-    function downloadPdfUrl(url, filename) {
+    async function downloadPdfUrl(url, filename) {
+      async function fetchBlob(downloadUrl) {
+        const response = await fetch(downloadUrl, { mode: 'cors' });
+        if (!response.ok) {
+          throw new Error('Download failed with status ' + response.status);
+        }
+        return await response.blob();
+      }
+
+      function triggerDownload(href) {
+        var a = document.createElement('a');
+        a.href = href;
+        a.download = filename || 'archivo.pdf';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
+      try {
+        let blob;
+        try {
+          blob = await fetchBlob(url);
+        } catch (error) {
+          if (!url.endsWith('/download')) throw error;
+          blob = await fetchBlob(url.slice(0, -'/download'.length));
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        return;
+      } catch (error) {
+        console.warn('Falling back to browser download link:', error);
+      }
+
       var a = document.createElement('a');
       a.href = url;
       a.download = filename || 'archivo.pdf';
+      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
