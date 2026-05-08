@@ -1,4 +1,6 @@
 class Recurso {
+  static const String _baseUrl = "https://recursos-monitores.onrender.com";
+
   final String id;
   final String titulo;
   final String? descripcion;
@@ -53,9 +55,48 @@ class Recurso {
     };
   }
 
-  /// URL completa para abrir el archivo
-  String get fullUrl => "https://recursos-monitores.onrender.com$archivoUrl";
+  /// URL completa para abrir/compartir el archivo.
+  ///
+  /// Se reconstruye con `Uri` para que nombres con espacios se compartan como
+  /// `%20` y no se corten al pegarlos en chats o navegadores.
+  String get fullUrl {
+    final rawUrl = archivoUrl.trim();
+    final parsed = Uri.tryParse(rawUrl);
 
-  /// Clave única para guardar en favoritos
+    if (parsed != null && parsed.hasScheme) {
+      return parsed.replace(
+        pathSegments: parsed.pathSegments.map(Uri.decodeComponent).toList(),
+      ).toString();
+    }
+
+    final relativeUri = Uri.tryParse(rawUrl);
+    final path = relativeUri?.path ?? rawUrl;
+    final pathSegments = path
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .map(Uri.decodeComponent)
+        .toList();
+
+    return Uri.parse(_baseUrl).replace(
+      pathSegments: pathSegments,
+      query: relativeUri?.hasQuery == true ? relativeUri!.query : null,
+    ).toString();
+  }
+
+  /// URL que fuerza descarga desde el backend cuando se usa en navegador.
+  String get downloadUrl {
+    final uri = Uri.parse(fullUrl);
+    final pathSegments = uri.pathSegments.map(Uri.decodeComponent).toList();
+
+    if (pathSegments.isNotEmpty &&
+        pathSegments.first == 'uploads' &&
+        pathSegments.last != 'download') {
+      return uri.replace(pathSegments: [...pathSegments, 'download']).toString();
+    }
+
+    return fullUrl;
+  }
+
+  /// Clave unica para guardar en favoritos.
   String get key => id;
 }
