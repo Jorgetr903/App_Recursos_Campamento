@@ -60,11 +60,9 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
 
     try {
       final years = await ApiService.getYearsDinamicas();
-      final anioFiltro =
-          selectedAnio ?? (years.isNotEmpty ? years.first : null);
       final data = await ApiService.getRecursos(
         tipo: "dinamica",
-        anio: anioFiltro,
+        anio: selectedAnio,
         grupo: selectedGrupo,
         q: searchQuery.isNotEmpty ? searchQuery : null,
         page: currentPage,
@@ -75,7 +73,6 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
 
       setState(() {
         availableYears = years;
-        selectedAnio = anioFiltro;
         recursos = data;
         loading = false;
         hasMore = data.length == 50;
