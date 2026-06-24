@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/kiosko_service.dart';
-import 'acampado_detalle_screen.dart';
-import 'nuevo_cuaderno_screen.dart';
 
 class KioskoScreen extends StatefulWidget {
   const KioskoScreen({Key? key}) : super(key: key);
@@ -352,14 +350,10 @@ class _KioskoScreenState extends State<KioskoScreen> {
                   ),
                 ),
                 onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AcampadoDetalleScreen(
-                      acampado: a,
-                      anio: _anioActual,
-                      onUpdated: _cargar,
-                    ),
-                  ),
+                  // TODO: implementar pantalla de detalle
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Detalle de ${a.nombreCompleto}')),
+                  );
                 ),
               );
             },
@@ -386,14 +380,9 @@ class _KioskoScreenState extends State<KioskoScreen> {
   }
 
   void _irANuevoCuaderno() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => NuevoCuadernoScreen(
-          anio: _anioActual,
-          onCreado: _cargar,
-        ),
-      ),
+    // TODO: implementar pantalla de nuevo cuaderno
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Próximamente: crear nuevo cuaderno')),
     );
   }
 }
