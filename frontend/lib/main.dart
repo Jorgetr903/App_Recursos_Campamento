@@ -9,7 +9,7 @@ import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
 import 'providers/favoritos_provider.dart';
 import 'dart:async';
-import 'screens/kiosko/kiosko_screen.dart';
+import 'screens/kiosko_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
