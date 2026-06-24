@@ -1,33 +1,25 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
+import 'package:CSP/web_utils.dart'
+    if (dart.library.io) 'package:CSP/web_utils_stub.dart' as platform;
 
 // ══════════════════════════════════════════════════════════════════
 //  MODELOS
 // ══════════════════════════════════════════════════════════════════
 
 class Gasto {
-  // descripcion y fecha eliminados según decisión del proyecto
   final int dia;
   final double cantidad;
 
-  Gasto({
-    required this.dia,
-    required this.cantidad,
-  });
+  Gasto({required this.dia, required this.cantidad});
 
   factory Gasto.fromJson(Map<String, dynamic> json) => Gasto(
         dia: json['dia'] as int,
         cantidad: (json['cantidad'] as num).toDouble(),
       );
 
-  Map<String, dynamic> toJson() => {
-        'dia': dia,
-        'cantidad': cantidad,
-      };
+  Map<String, dynamic> toJson() => {'dia': dia, 'cantidad': cantidad};
 }
 
 class Acampado {
@@ -98,24 +90,22 @@ class CuadernoKiosko {
       };
 }
 
+enum ModoPDF { blanco, completo }
+
 // ══════════════════════════════════════════════════════════════════
 //  SERVICIO
 // ══════════════════════════════════════════════════════════════════
 
-/// Modo de exportación del PDF
-enum ModoPDF { blanco, completo }
-
 class KioskoService {
-  // ⚠️ Cambia esta URL por la de tu backend desplegado en Render
-  static const String _baseUrl = 'https://TU_BACKEND.onrender.com/api/kiosko';
+  // ⚠️ Cambia esta URL por la de tu backend en Render
+  static const String _baseUrl = 'https://recursos-monitores.onrender.com/api/kiosko';
   static const String _cacheKey = 'kiosko_cache';
 
   final http.Client _client;
-
   KioskoService({http.Client? client}) : _client = client ?? http.Client();
 
   // ─────────────────────────────────────────────
-  //  Cache local (SharedPreferences)
+  //  Cache local
   // ─────────────────────────────────────────────
 
   Future<void> _saveToCache(CuadernoKiosko cuaderno) async {
@@ -138,10 +128,10 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  Cola de operaciones pendientes (offline)
+  //  Cola de pendientes — PÚBLICO para la UI
   // ─────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> _getPendingOps(int anio) async {
+  Future<List<Map<String, dynamic>>> getPendingOps(int anio) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('kiosko_pending_$anio');
     if (raw == null) return [];
@@ -149,7 +139,7 @@ class KioskoService {
   }
 
   Future<void> _savePendingOp(int anio, Map<String, dynamic> op) async {
-    final ops = await _getPendingOps(anio);
+    final ops = await getPendingOps(anio);
     ops.add(op);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('kiosko_pending_$anio', jsonEncode(ops));
@@ -161,7 +151,7 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  API — Obtener cuaderno (con fallback a cache)
+  //  Obtener cuaderno
   // ─────────────────────────────────────────────
 
   Future<CuadernoKiosko?> getCuaderno(int anio) async {
@@ -169,7 +159,6 @@ class KioskoService {
       final response = await _client
           .get(Uri.parse('$_baseUrl/$anio'))
           .timeout(const Duration(seconds: 6));
-
       if (response.statusCode == 200) {
         final cuaderno = CuadernoKiosko.fromJson(
             jsonDecode(response.body) as Map<String, dynamic>);
@@ -185,7 +174,7 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  API — Crear cuaderno
+  //  Crear cuaderno
   // ─────────────────────────────────────────────
 
   Future<CuadernoKiosko?> crearCuaderno(
@@ -195,7 +184,6 @@ class KioskoService {
         .post(Uri.parse(_baseUrl),
             headers: {'Content-Type': 'application/json'}, body: body)
         .timeout(const Duration(seconds: 10));
-
     if (response.statusCode == 201) {
       final cuaderno = CuadernoKiosko.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
@@ -206,7 +194,7 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  API — Actualizar dinero traído
+  //  Actualizar dinero traído
   // ─────────────────────────────────────────────
 
   Future<bool> actualizarDinero(
@@ -217,7 +205,6 @@ class KioskoService {
       if (idx >= 0) cache.acampados[idx].totalTraido = cantidad;
       await _saveToCache(cache);
     }
-
     try {
       final response = await _client
           .patch(
@@ -238,18 +225,12 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  API — Registrar gasto
-  //  Sin descripcion ni fecha
+  //  Registrar gasto
   // ─────────────────────────────────────────────
 
   Future<bool> registrarGasto(
       int anio, String acampadoId, int dia, double cantidad) async {
-    final gasto = {
-      'dia': dia,
-      'cantidad': cantidad,
-    };
-
-    // Actualizar cache local inmediatamente para respuesta instantánea en UI
+    final gasto = {'dia': dia, 'cantidad': cantidad};
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -258,7 +239,6 @@ class KioskoService {
         await _saveToCache(cache);
       }
     }
-
     try {
       final response = await _client
           .post(
@@ -279,7 +259,7 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  API — Eliminar gasto
+  //  Eliminar gasto
   // ─────────────────────────────────────────────
 
   Future<bool> eliminarGasto(
@@ -292,7 +272,6 @@ class KioskoService {
         await _saveToCache(cache);
       }
     }
-
     try {
       final response = await _client
           .delete(Uri.parse(
@@ -310,48 +289,29 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  API — Exportar PDF y abrirlo
-  //
-  //  modo: ModoPDF.blanco   → plantilla vacía para imprimir
-  //        ModoPDF.completo → con todos los gastos registrados
+  //  Exportar PDF
+  //  Usa el web_utils.dart existente en el proyecto
+  //  para abrir/descargar la URL del PDF en el navegador
   // ─────────────────────────────────────────────
 
   Future<void> exportarPDF(int anio, {ModoPDF modo = ModoPDF.completo}) async {
     final modoParam = modo == ModoPDF.blanco ? 'blanco' : 'completo';
-    final url = Uri.parse('$_baseUrl/$anio/export/pdf?modo=$modoParam');
-
-    final response = await _client
-        .get(url)
-        .timeout(const Duration(seconds: 30)); // PDFs pueden tardar más
-
-    if (response.statusCode != 200) {
-      throw Exception('Error al generar PDF (${response.statusCode})');
-    }
-
-    // Guardar en directorio de documentos del dispositivo
-    final dir = await getApplicationDocumentsDirectory();
+    final url = '$_baseUrl/$anio/export/pdf?modo=$modoParam';
     final nombreArchivo = modo == ModoPDF.blanco
         ? 'Cuaderno_Kiosko_${anio}_EnBlanco.pdf'
         : 'Cuaderno_Kiosko_${anio}_Completo.pdf';
 
-    final file = File('${dir.path}/$nombreArchivo');
-    await file.writeAsBytes(response.bodyBytes);
-
-    // Abrir con el visor de PDF del dispositivo
-    final resultado = await OpenFile.open(file.path);
-    if (resultado.type != ResultType.done) {
-      throw Exception('No se pudo abrir el PDF: ${resultado.message}');
-    }
+    // Usa el sistema de descarga que ya tienes en web_utils.dart
+    platform.downloadUrl(url, nombreArchivo);
   }
 
   // ─────────────────────────────────────────────
-  //  Sincronizar operaciones pendientes
+  //  Sincronizar pendientes
   // ─────────────────────────────────────────────
 
   Future<int> sincronizarPendientes(int anio) async {
-    final ops = await _getPendingOps(anio);
+    final ops = await getPendingOps(anio);
     if (ops.isEmpty) return 0;
-
     int sincronizadas = 0;
     for (final op in ops) {
       try {
@@ -362,13 +322,8 @@ class KioskoService {
                 anio, op['acampadoId'], (op['totalTraido'] as num).toDouble());
             break;
           case 'addGasto':
-            ok = await registrarGasto(
-              anio,
-              op['acampadoId'],
-              op['dia'] as int,
-              (op['cantidad'] as num).toDouble(),
-              // Sin descripcion ni fecha
-            );
+            ok = await registrarGasto(anio, op['acampadoId'],
+                op['dia'] as int, (op['cantidad'] as num).toDouble());
             break;
           case 'deleteGasto':
             ok = await eliminarGasto(
@@ -380,11 +335,7 @@ class KioskoService {
         break;
       }
     }
-
-    if (sincronizadas == ops.length) {
-      await _clearPendingOps(anio);
-    }
-
+    if (sincronizadas == ops.length) await _clearPendingOps(anio);
     return sincronizadas;
   }
 }

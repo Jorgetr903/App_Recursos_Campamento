@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/kiosko_service.dart';
+import '../services/kiosko_service.dart';
 
 class KioskoScreen extends StatefulWidget {
   const KioskoScreen({Key? key}) : super(key: key);
@@ -28,7 +28,8 @@ class _KioskoScreenState extends State<KioskoScreen> {
     setState(() => _loading = true);
     try {
       final cuaderno = await _service.getCuaderno(_anioActual);
-      final pendientes = await _service._getPendingOps(_anioActual);
+      // getPendingOps ahora es público (sin _)
+      final pendientes = await _service.getPendingOps(_anioActual);
       setState(() {
         _cuaderno = cuaderno;
         _loading = false;
@@ -62,19 +63,15 @@ class _KioskoScreenState extends State<KioskoScreen> {
 
   Future<void> _exportarPDF(ModoPDF modo) async {
     if (_cuaderno == null) return;
-
     setState(() => _exportandoPDF = true);
-
     try {
       await _service.exportarPDF(_anioActual, modo: modo);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            modo == ModoPDF.blanco
-                ? 'PDF en blanco generado ✓'
-                : 'PDF completo generado ✓',
-          ),
+          content: Text(modo == ModoPDF.blanco
+              ? 'PDF en blanco generado ✓'
+              : 'PDF completo generado ✓'),
           backgroundColor: Colors.green.shade700,
         ),
       );
@@ -103,18 +100,12 @@ class _KioskoScreenState extends State<KioskoScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Exportar cuaderno',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text('Exportar cuaderno',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              'Elige el tipo de PDF que quieres generar:',
-              style: TextStyle(color: Colors.grey),
-            ),
+            const Text('Elige el tipo de PDF que quieres generar:',
+                style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 20),
-
-            // Opción 1: En blanco
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
@@ -133,10 +124,7 @@ class _KioskoScreenState extends State<KioskoScreen> {
                 _exportarPDF(ModoPDF.blanco);
               },
             ),
-
             const Divider(),
-
-            // Opción 2: Completo con datos
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
@@ -161,6 +149,29 @@ class _KioskoScreenState extends State<KioskoScreen> {
     );
   }
 
+  // ── Nuevo cuaderno ────────────────────────────────────────────
+
+  void _mostrarDialogoNuevoCuaderno() {
+    showDialog(
+      context: context,
+      builder: (_) => _NuevoCuadernoDialog(
+        anio: _anioActual,
+        onCreado: (acampados) async {
+          Navigator.pop(context);
+          try {
+            await _service.crearCuaderno(_anioActual, acampados);
+            await _cargar();
+          } catch (e) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error al crear cuaderno: $e')),
+            );
+          }
+        },
+      ),
+    );
+  }
+
   // ── UI ─────────────────────────────────────────────────────────
 
   Color _colorSaldo(double saldo) {
@@ -177,7 +188,6 @@ class _KioskoScreenState extends State<KioskoScreen> {
         backgroundColor: const Color(0xFF1A5FA8),
         foregroundColor: Colors.white,
         actions: [
-          // Botón sincronizar (solo si hay pendientes)
           if (_pendientesCount > 0)
             Stack(
               alignment: Alignment.center,
@@ -201,8 +211,6 @@ class _KioskoScreenState extends State<KioskoScreen> {
                 ),
               ],
             ),
-
-          // Botón PDF (solo si hay cuaderno cargado)
           if (_cuaderno != null)
             _exportandoPDF
                 ? const Padding(
@@ -219,11 +227,7 @@ class _KioskoScreenState extends State<KioskoScreen> {
                     tooltip: 'Exportar PDF',
                     onPressed: _mostrarMenuPDF,
                   ),
-
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _cargar,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
         ],
       ),
       body: _loading
@@ -233,7 +237,7 @@ class _KioskoScreenState extends State<KioskoScreen> {
               : _buildLista(),
       floatingActionButton: _cuaderno == null
           ? FloatingActionButton.extended(
-              onPressed: _irANuevoCuaderno,
+              onPressed: _mostrarDialogoNuevoCuaderno,
               icon: const Icon(Icons.add),
               label: const Text('Nuevo cuaderno'),
               backgroundColor: const Color(0xFF1A5FA8),
@@ -249,15 +253,11 @@ class _KioskoScreenState extends State<KioskoScreen> {
         children: [
           const Icon(Icons.store, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          Text(
-            'No hay cuaderno para $_anioActual',
-            style: const TextStyle(fontSize: 18, color: Colors.grey),
-          ),
+          Text('No hay cuaderno para $_anioActual',
+              style: const TextStyle(fontSize: 18, color: Colors.grey)),
           const SizedBox(height: 8),
-          const Text(
-            'Pulsa el botón para crear uno nuevo',
-            style: TextStyle(color: Colors.grey),
-          ),
+          const Text('Pulsa el botón para crear uno nuevo',
+              style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -265,10 +265,8 @@ class _KioskoScreenState extends State<KioskoScreen> {
 
   Widget _buildLista() {
     final acampados = _cuaderno!.acampados;
-
     return Column(
       children: [
-        // Banner sin conexión
         if (_offline)
           Container(
             color: Colors.orange.shade100,
@@ -286,8 +284,6 @@ class _KioskoScreenState extends State<KioskoScreen> {
               ],
             ),
           ),
-
-        // Resumen global
         Container(
           color: const Color(0xFFE8F0FB),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -308,8 +304,6 @@ class _KioskoScreenState extends State<KioskoScreen> {
             ],
           ),
         ),
-
-        // Lista de acampados
         Expanded(
           child: ListView.separated(
             itemCount: acampados.length,
@@ -325,10 +319,8 @@ class _KioskoScreenState extends State<KioskoScreen> {
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                title: Text(
-                  a.nombreCompleto,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
+                title: Text(a.nombreCompleto,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(
                   'Traído: ${a.totalTraido.toStringAsFixed(2)}€  ·  '
                   'Gastado: ${a.totalGastado.toStringAsFixed(2)}€',
@@ -349,12 +341,7 @@ class _KioskoScreenState extends State<KioskoScreen> {
                     ),
                   ),
                 ),
-                onTap: () => Navigator.push(
-                  // TODO: implementar pantalla de detalle
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Detalle de ${a.nombreCompleto}')),
-                  );
-                ),
+                onTap: () => _mostrarDetalleAcampado(a),
               );
             },
           ),
@@ -363,26 +350,356 @@ class _KioskoScreenState extends State<KioskoScreen> {
     );
   }
 
-  Widget _buildStat(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.bold, color: color),
-        ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
-      ],
+  // Detalle del acampado inline (sin pantalla separada por ahora)
+  void _mostrarDetalleAcampado(Acampado a) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _DetalleAcampadoSheet(
+        acampado: a,
+        anio: _anioActual,
+        service: _service,
+        onUpdated: _cargar,
+      ),
     );
   }
 
-  void _irANuevoCuaderno() async {
-    // TODO: implementar pantalla de nuevo cuaderno
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Próximamente: crear nuevo cuaderno')),
+  Widget _buildStat(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value,
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SHEET DE DETALLE DE ACAMPADO
+//  Muestra gastos y permite añadir nuevos
+// ══════════════════════════════════════════════════════════════════
+
+class _DetalleAcampadoSheet extends StatefulWidget {
+  final Acampado acampado;
+  final int anio;
+  final KioskoService service;
+  final VoidCallback onUpdated;
+
+  const _DetalleAcampadoSheet({
+    required this.acampado,
+    required this.anio,
+    required this.service,
+    required this.onUpdated,
+  });
+
+  @override
+  State<_DetalleAcampadoSheet> createState() => _DetalleAcampadoSheetState();
+}
+
+class _DetalleAcampadoSheetState extends State<_DetalleAcampadoSheet> {
+  final _cantidadController = TextEditingController();
+  final _diaController = TextEditingController();
+  bool _guardando = false;
+
+  @override
+  void dispose() {
+    _cantidadController.dispose();
+    _diaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _agregarGasto() async {
+    final dia = int.tryParse(_diaController.text.trim());
+    final cantidad = double.tryParse(
+        _cantidadController.text.trim().replaceAll(',', '.'));
+
+    if (dia == null || cantidad == null || cantidad <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Introduce un día y cantidad válidos')),
+      );
+      return;
+    }
+
+    setState(() => _guardando = true);
+    await widget.service.registrarGasto(
+        widget.anio, widget.acampado.id, dia, cantidad);
+    setState(() => _guardando = false);
+
+    _diaController.clear();
+    _cantidadController.clear();
+
+    widget.onUpdated();
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _actualizarDinero() async {
+    final controller = TextEditingController(
+        text: widget.acampado.totalTraido.toStringAsFixed(2));
+    final result = await showDialog<double>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Dinero traído'),
+        content: TextField(
+          controller: controller,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+              labelText: 'Cantidad (€)', suffixText: '€'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              final v = double.tryParse(
+                  controller.text.trim().replaceAll(',', '.'));
+              Navigator.pop(context, v);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await widget.service.actualizarDinero(
+          widget.anio, widget.acampado.id, result);
+      widget.onUpdated();
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = widget.acampado;
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      builder: (_, scrollController) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: ListView(
+          controller: scrollController,
+          children: [
+            // Cabecera
+            Row(
+              children: [
+                Expanded(
+                  child: Text(a.nombreCompleto,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Color(0xFF1A5FA8)),
+                  tooltip: 'Editar dinero traído',
+                  onPressed: _actualizarDinero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Traído: ${a.totalTraido.toStringAsFixed(2)}€  ·  '
+              'Gastado: ${a.totalGastado.toStringAsFixed(2)}€  ·  '
+              'Saldo: ${a.saldo.toStringAsFixed(2)}€',
+              style: TextStyle(
+                  color: a.saldo >= 0
+                      ? Colors.green.shade700
+                      : Colors.red.shade700),
+            ),
+            const Divider(height: 24),
+
+            // Lista de gastos
+            if (a.gastos.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Sin gastos registrados',
+                    style: TextStyle(color: Colors.grey)),
+              )
+            else ...[
+              const Text('Gastos',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ...a.gastos.asMap().entries.map((entry) {
+                double acumulado = 0;
+                for (int k = 0; k <= entry.key; k++) {
+                  acumulado += a.gastos[k].cantidad;
+                }
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 14,
+                    backgroundColor: const Color(0xFFE8F0FB),
+                    child: Text('${entry.value.dia}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF1A5FA8))),
+                  ),
+                  title:
+                      Text('${entry.value.cantidad.toStringAsFixed(2)}€'),
+                  subtitle: Text(
+                      'Acumulado: ${acumulado.toStringAsFixed(2)}€',
+                      style: const TextStyle(fontSize: 11)),
+                );
+              }),
+            ],
+
+            const Divider(height: 24),
+
+            // Formulario añadir gasto
+            const Text('Añadir gasto',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _diaController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Día',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _cantidadController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad (€)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                      suffixText: '€',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _guardando ? null : _agregarGasto,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A5FA8),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: _guardando
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Añadir'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  DIALOGO NUEVO CUADERNO
+//  Permite introducir los nombres de los acampados
+// ══════════════════════════════════════════════════════════════════
+
+class _NuevoCuadernoDialog extends StatefulWidget {
+  final int anio;
+  final Function(List<Map<String, dynamic>>) onCreado;
+
+  const _NuevoCuadernoDialog(
+      {required this.anio, required this.onCreado});
+
+  @override
+  State<_NuevoCuadernoDialog> createState() => _NuevoCuadernoDialogState();
+}
+
+class _NuevoCuadernoDialogState extends State<_NuevoCuadernoDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _crear() {
+    final lineas = _controller.text
+        .trim()
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    if (lineas.isEmpty) return;
+
+    final acampados = lineas.map((linea) {
+      final partes = linea.split(' ');
+      final nombre = partes.first;
+      final apellidos =
+          partes.length > 1 ? partes.sublist(1).join(' ') : '';
+      return {'nombre': nombre, 'apellidos': apellidos, 'totalTraido': 0};
+    }).toList();
+
+    widget.onCreado(acampados);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Nuevo cuaderno ${widget.anio}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Escribe un acampado por línea:\nNombre Apellido1 Apellido2',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              maxLines: 10,
+              decoration: const InputDecoration(
+                hintText:
+                    'Adrián Salinero Romanillos\nAinhoa Hinojosa Torres\n...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: _crear,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A5FA8),
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Crear'),
+        ),
+      ],
     );
   }
 }
