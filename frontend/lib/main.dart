@@ -9,6 +9,7 @@ import 'screens/dinamicas_screen.dart';
 import 'screens/favoritos_screen.dart';
 import 'providers/favoritos_provider.dart';
 import 'dart:async';
+import 'screens/kiosko/kiosko_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -140,6 +141,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const ActividadesScreen(),
     const DinamicasScreen(),
     const FavoritosScreen(),
+    const KioskoScreen(),
   ];
 
   void setIndex(int index) {
@@ -161,6 +163,7 @@ class _MainNavigationState extends State<MainNavigation> {
           const BottomNavigationBarItem(icon: Icon(Icons.sports), label: "Actividades"),
           BottomNavigationBarItem(icon: Icon(MdiIcons.cross), label: "Dinámicas"),
           const BottomNavigationBarItem(icon: Icon(Icons.favorite), label: "Favoritos"),
+          const BottomNavigationBarItem(icon: Icon(Icons.store), label: "Kiosko",),
         ],
       ),
     );
