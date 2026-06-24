@@ -15,6 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _DashboardItem('Formaciones', Icons.school, const Color(0xFF2196F3), 1),
     _DashboardItem('Actividades', Icons.sports, const Color(0xFF4CAF50), 2),
     _DashboardItem('Dinámicas', MdiIcons.cross, const Color(0xFFFFC107), 3),
+    _DashboardItem('Kiosko', Icons.store, const Color(0xFF1A5FA8), 5),
   ];
 
   @override
