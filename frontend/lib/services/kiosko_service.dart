@@ -1,10 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
-// ── Modelos ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  MODELOS
+// ══════════════════════════════════════════════════════════════════
 
 class Gasto {
+  // descripcion y fecha eliminados según decisión del proyecto
   final int dia;
   final double cantidad;
 
@@ -92,17 +98,25 @@ class CuadernoKiosko {
       };
 }
 
-// ── Servicio ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  SERVICIO
+// ══════════════════════════════════════════════════════════════════
+
+/// Modo de exportación del PDF
+enum ModoPDF { blanco, completo }
 
 class KioskoService {
-  static const String _baseUrl = 'https://recursos-monitores.onrender.com/api/kiosko';
+  // ⚠️ Cambia esta URL por la de tu backend desplegado en Render
+  static const String _baseUrl = 'https://TU_BACKEND.onrender.com/api/kiosko';
   static const String _cacheKey = 'kiosko_cache';
 
   final http.Client _client;
 
   KioskoService({http.Client? client}) : _client = client ?? http.Client();
 
-  // ── Cache local ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  //  Cache local (SharedPreferences)
+  // ─────────────────────────────────────────────
 
   Future<void> _saveToCache(CuadernoKiosko cuaderno) async {
     final prefs = await SharedPreferences.getInstance();
@@ -123,7 +137,9 @@ class KioskoService {
     }
   }
 
-  // ── Pendientes offline ───────────────────────────────────────
+  // ─────────────────────────────────────────────
+  //  Cola de operaciones pendientes (offline)
+  // ─────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> _getPendingOps(int anio) async {
     final prefs = await SharedPreferences.getInstance();
@@ -144,9 +160,10 @@ class KioskoService {
     await prefs.remove('kiosko_pending_$anio');
   }
 
-  // ── API calls con fallback offline ──────────────────────────
+  // ─────────────────────────────────────────────
+  //  API — Obtener cuaderno (con fallback a cache)
+  // ─────────────────────────────────────────────
 
-  /// Carga el cuaderno. Si no hay red, devuelve la cache local.
   Future<CuadernoKiosko?> getCuaderno(int anio) async {
     try {
       final response = await _client
@@ -159,16 +176,18 @@ class KioskoService {
         await _saveToCache(cuaderno);
         return cuaderno;
       } else if (response.statusCode == 404) {
-        return null; // No existe aún
+        return null;
       }
     } catch (_) {
-      // Sin red → devolver cache
       return _loadFromCache(anio);
     }
     return _loadFromCache(anio);
   }
 
-  /// Crea el cuaderno con la lista de acampados del año
+  // ─────────────────────────────────────────────
+  //  API — Crear cuaderno
+  // ─────────────────────────────────────────────
+
   Future<CuadernoKiosko?> crearCuaderno(
       int anio, List<Map<String, dynamic>> acampados) async {
     final body = jsonEncode({'anio': anio, 'acampados': acampados});
@@ -186,10 +205,12 @@ class KioskoService {
     throw Exception('Error al crear cuaderno: ${response.body}');
   }
 
-  /// Actualiza dinero traído. Guarda en cache y encola si offline.
+  // ─────────────────────────────────────────────
+  //  API — Actualizar dinero traído
+  // ─────────────────────────────────────────────
+
   Future<bool> actualizarDinero(
       int anio, String acampadoId, double cantidad) async {
-    // Actualizar cache local inmediatamente
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -207,25 +228,28 @@ class KioskoService {
           .timeout(const Duration(seconds: 6));
       return response.statusCode == 200;
     } catch (_) {
-      // Sin red → encolar operación
       await _savePendingOp(anio, {
         'type': 'updateDinero',
         'acampadoId': acampadoId,
         'totalTraido': cantidad,
       });
-      return true; // Guardado localmente
+      return true;
     }
   }
 
-  /// Registra un gasto. Guarda en cache y encola si offline.
-  Future<bool> registrarGasto(int anio, String acampadoId, int dia,
-      double cantidad, String descripcion) async {
+  // ─────────────────────────────────────────────
+  //  API — Registrar gasto
+  //  Sin descripcion ni fecha
+  // ─────────────────────────────────────────────
+
+  Future<bool> registrarGasto(
+      int anio, String acampadoId, int dia, double cantidad) async {
     final gasto = {
       'dia': dia,
       'cantidad': cantidad,
     };
 
-    // Actualizar cache local inmediatamente
+    // Actualizar cache local inmediatamente para respuesta instantánea en UI
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -254,10 +278,12 @@ class KioskoService {
     }
   }
 
-  /// Eliminar un gasto
+  // ─────────────────────────────────────────────
+  //  API — Eliminar gasto
+  // ─────────────────────────────────────────────
+
   Future<bool> eliminarGasto(
       int anio, String acampadoId, int gastoIndex) async {
-    // Actualizar cache
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -283,7 +309,45 @@ class KioskoService {
     }
   }
 
-  /// Sincronizar operaciones pendientes cuando vuelve la conexión
+  // ─────────────────────────────────────────────
+  //  API — Exportar PDF y abrirlo
+  //
+  //  modo: ModoPDF.blanco   → plantilla vacía para imprimir
+  //        ModoPDF.completo → con todos los gastos registrados
+  // ─────────────────────────────────────────────
+
+  Future<void> exportarPDF(int anio, {ModoPDF modo = ModoPDF.completo}) async {
+    final modoParam = modo == ModoPDF.blanco ? 'blanco' : 'completo';
+    final url = Uri.parse('$_baseUrl/$anio/export/pdf?modo=$modoParam');
+
+    final response = await _client
+        .get(url)
+        .timeout(const Duration(seconds: 30)); // PDFs pueden tardar más
+
+    if (response.statusCode != 200) {
+      throw Exception('Error al generar PDF (${response.statusCode})');
+    }
+
+    // Guardar en directorio de documentos del dispositivo
+    final dir = await getApplicationDocumentsDirectory();
+    final nombreArchivo = modo == ModoPDF.blanco
+        ? 'Cuaderno_Kiosko_${anio}_EnBlanco.pdf'
+        : 'Cuaderno_Kiosko_${anio}_Completo.pdf';
+
+    final file = File('${dir.path}/$nombreArchivo');
+    await file.writeAsBytes(response.bodyBytes);
+
+    // Abrir con el visor de PDF del dispositivo
+    final resultado = await OpenFile.open(file.path);
+    if (resultado.type != ResultType.done) {
+      throw Exception('No se pudo abrir el PDF: ${resultado.message}');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Sincronizar operaciones pendientes
+  // ─────────────────────────────────────────────
+
   Future<int> sincronizarPendientes(int anio) async {
     final ops = await _getPendingOps(anio);
     if (ops.isEmpty) return 0;
@@ -299,18 +363,21 @@ class KioskoService {
             break;
           case 'addGasto':
             ok = await registrarGasto(
+              anio,
               op['acampadoId'],
               op['dia'] as int,
               (op['cantidad'] as num).toDouble(),
+              // Sin descripcion ni fecha
             );
             break;
           case 'deleteGasto':
-            ok = await eliminarGasto(anio, op['acampadoId'], op['index'] as int);
+            ok = await eliminarGasto(
+                anio, op['acampadoId'], op['index'] as int);
             break;
         }
         if (ok) sincronizadas++;
       } catch (_) {
-        break; // Si falla, parar y mantener pendientes
+        break;
       }
     }
 
