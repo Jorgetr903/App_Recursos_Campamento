@@ -97,7 +97,6 @@ enum ModoPDF { blanco, completo }
 // ══════════════════════════════════════════════════════════════════
 
 class KioskoService {
-  // ⚠️ Cambia esta URL por la de tu backend en Render
   static const String _baseUrl = 'https://recursos-monitores.onrender.com/api/kiosko';
   static const String _cacheKey = 'kiosko_cache';
 
@@ -151,7 +150,7 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  Obtener cuaderno
+  //  Obtener cuaderno (con fallback offline)
   // ─────────────────────────────────────────────
 
   Future<CuadernoKiosko?> getCuaderno(int anio) async {
@@ -177,20 +176,76 @@ class KioskoService {
   //  Crear cuaderno
   // ─────────────────────────────────────────────
 
-  Future<CuadernoKiosko?> crearCuaderno(
+  Future<CuadernoKiosko> crearCuaderno(
       int anio, List<Map<String, dynamic>> acampados) async {
-    final body = jsonEncode({'anio': anio, 'acampados': acampados});
     final response = await _client
-        .post(Uri.parse(_baseUrl),
-            headers: {'Content-Type': 'application/json'}, body: body)
+        .post(
+          Uri.parse(_baseUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'anio': anio, 'acampados': acampados}),
+        )
         .timeout(const Duration(seconds: 10));
+
     if (response.statusCode == 201) {
       final cuaderno = CuadernoKiosko.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
       await _saveToCache(cuaderno);
       return cuaderno;
     }
-    throw Exception('Error al crear cuaderno: ${response.body}');
+    throw Exception('Error ${response.statusCode}: ${response.body}');
+  }
+
+  // ─────────────────────────────────────────────
+  //  Añadir acampado a cuaderno existente
+  // ─────────────────────────────────────────────
+
+  Future<CuadernoKiosko> anadirAcampado(
+      int anio, String nombre, String apellidos) async {
+    final response = await _client
+        .post(
+          Uri.parse('$_baseUrl/$anio/acampados'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'acampados': [
+              {'nombre': nombre, 'apellidos': apellidos, 'totalTraido': 0}
+            ]
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 201) {
+      final cuaderno = CuadernoKiosko.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+      await _saveToCache(cuaderno);
+      return cuaderno;
+    }
+    throw Exception('Error ${response.statusCode}: ${response.body}');
+  }
+
+  // ─────────────────────────────────────────────
+  //  Eliminar acampado
+  // ─────────────────────────────────────────────
+
+  Future<bool> eliminarAcampado(int anio, String acampadoId) async {
+    // Actualizar cache local inmediatamente
+    final cache = await _loadFromCache(anio);
+    if (cache != null) {
+      cache.acampados.removeWhere((a) => a.id == acampadoId);
+      await _saveToCache(cache);
+    }
+
+    try {
+      final response = await _client
+          .delete(Uri.parse('$_baseUrl/$anio/acampados/$acampadoId'))
+          .timeout(const Duration(seconds: 6));
+      return response.statusCode == 200;
+    } catch (_) {
+      await _savePendingOp(anio, {
+        'type': 'deleteAcampado',
+        'acampadoId': acampadoId,
+      });
+      return true;
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -205,6 +260,7 @@ class KioskoService {
       if (idx >= 0) cache.acampados[idx].totalTraido = cantidad;
       await _saveToCache(cache);
     }
+
     try {
       final response = await _client
           .patch(
@@ -231,6 +287,7 @@ class KioskoService {
   Future<bool> registrarGasto(
       int anio, String acampadoId, int dia, double cantidad) async {
     final gasto = {'dia': dia, 'cantidad': cantidad};
+
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -239,6 +296,7 @@ class KioskoService {
         await _saveToCache(cache);
       }
     }
+
     try {
       final response = await _client
           .post(
@@ -272,6 +330,7 @@ class KioskoService {
         await _saveToCache(cache);
       }
     }
+
     try {
       final response = await _client
           .delete(Uri.parse(
@@ -289,9 +348,7 @@ class KioskoService {
   }
 
   // ─────────────────────────────────────────────
-  //  Exportar PDF
-  //  Usa el web_utils.dart existente en el proyecto
-  //  para abrir/descargar la URL del PDF en el navegador
+  //  Exportar PDF — descarga directa en el navegador
   // ─────────────────────────────────────────────
 
   Future<void> exportarPDF(int anio, {ModoPDF modo = ModoPDF.completo}) async {
@@ -301,17 +358,18 @@ class KioskoService {
         ? 'Cuaderno_Kiosko_${anio}_EnBlanco.pdf'
         : 'Cuaderno_Kiosko_${anio}_Completo.pdf';
 
-    // Usa el sistema de descarga que ya tienes en web_utils.dart
+    // Usa downloadPdfUrl definida en web/index.html
     platform.downloadUrl(url, nombreArchivo);
   }
 
   // ─────────────────────────────────────────────
-  //  Sincronizar pendientes
+  //  Sincronizar pendientes offline
   // ─────────────────────────────────────────────
 
   Future<int> sincronizarPendientes(int anio) async {
     final ops = await getPendingOps(anio);
     if (ops.isEmpty) return 0;
+
     int sincronizadas = 0;
     for (final op in ops) {
       try {
@@ -329,12 +387,16 @@ class KioskoService {
             ok = await eliminarGasto(
                 anio, op['acampadoId'], op['index'] as int);
             break;
+          case 'deleteAcampado':
+            ok = await eliminarAcampado(anio, op['acampadoId']);
+            break;
         }
         if (ok) sincronizadas++;
       } catch (_) {
         break;
       }
     }
+
     if (sincronizadas == ops.length) await _clearPendingOps(anio);
     return sincronizadas;
   }
