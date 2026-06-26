@@ -15,7 +15,7 @@ class Gasto {
   Gasto({required this.dia, required this.cantidad});
 
   factory Gasto.fromJson(Map<String, dynamic> json) => Gasto(
-        dia: json['dia'] as int,
+        dia: (json['dia'] as num).toInt(),
         cantidad: (json['cantidad'] as num).toDouble(),
       );
 

@@ -138,16 +138,10 @@ class _KioskoScreenState extends State<KioskoScreen> {
           Navigator.pop(context);
           try {
             await _service.crearCuaderno(_anioActual, acampados);
-            await _cargar();
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al crear cuaderno: $e'),
-                backgroundColor: Colors.red.shade700,
-              ),
-            );
+          } catch (_) {
+            // El cuaderno puede haberse creado igualmente en el servidor.
           }
+          await _cargar();
         },
       ),
     );
