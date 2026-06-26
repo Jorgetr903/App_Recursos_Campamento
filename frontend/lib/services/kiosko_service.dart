@@ -92,6 +92,22 @@ class CuadernoKiosko {
 
 enum ModoPDF { blanco, completo }
 
+class KioskoLoadResult {
+  final CuadernoKiosko? cuaderno;
+  final bool fromCache;
+  final bool notFound;
+  final Object? error;
+
+  const KioskoLoadResult({
+    required this.cuaderno,
+    this.fromCache = false,
+    this.notFound = false,
+    this.error,
+  });
+
+  bool get hasError => error != null;
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  SERVICIO
 // ══════════════════════════════════════════════════════════════════
@@ -131,10 +147,14 @@ class KioskoService {
   // ─────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getPendingOps(int anio) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('kiosko_pending_$anio');
-    if (raw == null) return [];
-    return List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('kiosko_pending_$anio');
+      if (raw == null) return [];
+      return List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> _savePendingOp(int anio, Map<String, dynamic> op) async {
@@ -153,7 +173,7 @@ class KioskoService {
   //  Obtener cuaderno (con fallback offline)
   // ─────────────────────────────────────────────
 
-  Future<CuadernoKiosko?> getCuaderno(int anio) async {
+  Future<KioskoLoadResult> getCuadernoResult(int anio) async {
     try {
       final response = await _client
           .get(Uri.parse('$_baseUrl/$anio'))
@@ -162,14 +182,28 @@ class KioskoService {
         final cuaderno = CuadernoKiosko.fromJson(
             jsonDecode(response.body) as Map<String, dynamic>);
         await _saveToCache(cuaderno);
-        return cuaderno;
+        return KioskoLoadResult(cuaderno: cuaderno);
       } else if (response.statusCode == 404) {
-        return null;
+        return const KioskoLoadResult(cuaderno: null, notFound: true);
       }
-    } catch (_) {
-      return _loadFromCache(anio);
+      final cache = await _loadFromCache(anio);
+      return KioskoLoadResult(
+        cuaderno: cache,
+        fromCache: cache != null,
+        error: 'HTTP ${response.statusCode}: ${response.body}',
+      );
+    } catch (e) {
+      final cache = await _loadFromCache(anio);
+      return KioskoLoadResult(
+        cuaderno: cache,
+        fromCache: cache != null,
+        error: e,
+      );
     }
-    return _loadFromCache(anio);
+  }
+
+  Future<CuadernoKiosko?> getCuaderno(int anio) async {
+    return (await getCuadernoResult(anio)).cuaderno;
   }
 
   // ─────────────────────────────────────────────

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../services/kiosko_service.dart';
 
-// ══════════════════════════════════════════════════════════════════
-//  PANTALLA PRINCIPAL
-// ══════════════════════════════════════════════════════════════════
-
 class KioskoScreen extends StatefulWidget {
-  const KioskoScreen({Key? key}) : super(key: key);
+  const KioskoScreen({super.key});
 
   @override
   State<KioskoScreen> createState() => _KioskoScreenState();
@@ -14,120 +11,211 @@ class KioskoScreen extends StatefulWidget {
 
 class _KioskoScreenState extends State<KioskoScreen> {
   final KioskoService _service = KioskoService();
+  final TextEditingController _searchController = TextEditingController();
+
   CuadernoKiosko? _cuaderno;
   bool _loading = true;
   bool _offline = false;
+  bool _syncing = false;
+  bool _synced = false;
+  bool _notFound = false;
   int _pendientesCount = 0;
-  bool _exportandoPDF = false;
+  Object? _loadError;
 
   int get _anioActual => DateTime.now().year;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() => setState(() {}));
     _cargar();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _cargar() async {
-    setState(() => _loading = true);
-    try {
-      final cuaderno = await _service.getCuaderno(_anioActual);
-      final pendientes = await _service.getPendingOps(_anioActual);
-      setState(() {
-        _cuaderno = cuaderno;
-        _loading = false;
-        _pendientesCount = pendientes.length;
-        _offline = false;
-      });
-    } catch (_) {
-      setState(() {
-        _loading = false;
-        _offline = true;
-      });
-    }
+    setState(() {
+      _loading = true;
+      _synced = false;
+    });
+
+    final result = await _service.getCuadernoResult(_anioActual);
+    final pendientes = await _service.getPendingOps(_anioActual);
+
+    if (!mounted) return;
+    setState(() {
+      _cuaderno = result.cuaderno;
+      _loading = false;
+      _offline = result.hasError;
+      _notFound = result.notFound;
+      _loadError = result.error;
+      _pendientesCount = pendientes.length;
+    });
   }
 
   Future<void> _sincronizar() async {
+    setState(() {
+      _syncing = true;
+      _synced = false;
+    });
+
     final n = await _service.sincronizarPendientes(_anioActual);
+    await _cargar();
+
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(n > 0 ? '$n operaciones sincronizadas ✓' : 'Sin conexión o nada pendiente'),
-    ));
-    if (n > 0) await _cargar();
-  }
+    setState(() {
+      _syncing = false;
+      _synced = n > 0 && _pendientesCount == 0;
+    });
 
-  // ── PDF ───────────────────────────────────────────────────────
-
-  Future<void> _exportarPDF(ModoPDF modo) async {
-    setState(() => _exportandoPDF = true);
-    try {
-      await _service.exportarPDF(_anioActual, modo: modo);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(modo == ModoPDF.blanco ? 'PDF en blanco generado ✓' : 'PDF completo generado ✓'),
-        backgroundColor: Colors.green.shade700,
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error al generar PDF: $e'),
-        backgroundColor: Colors.red.shade700,
-      ));
-    } finally {
-      if (mounted) setState(() => _exportandoPDF = false);
+    if (_synced) {
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _synced = false);
+      });
     }
   }
 
-  void _mostrarMenuPDF() {
-    showModalBottomSheet(
+  Future<void> _exportarPDF(ModoPDF modo) async {
+    await _service.exportarPDF(_anioActual, modo: modo);
+  }
+
+  Future<void> _mostrarMenuPDF() async {
+    final modo = await showModalBottomSheet<ModoPDF>(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Exportar cuaderno',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const Text('Elige el tipo de PDF:', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.print, color: Colors.blue.shade700),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Radio<ModoPDF>(
+                  value: ModoPDF.completo,
+                  groupValue: ModoPDF.completo,
+                  onChanged: null,
+                ),
+                title: const Text('Cuaderno completo'),
+                onTap: () => Navigator.pop(context, ModoPDF.completo),
               ),
-              title: const Text('Cuaderno en blanco',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Plantilla vacía para imprimir antes del campamento'),
-              onTap: () { Navigator.pop(context); _exportarPDF(ModoPDF.blanco); },
-            ),
-            const Divider(),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.picture_as_pdf, color: Colors.green.shade700),
+              ListTile(
+                leading: const Radio<ModoPDF>(
+                  value: ModoPDF.blanco,
+                  groupValue: ModoPDF.completo,
+                  onChanged: null,
+                ),
+                title: const Text('Plantilla en blanco'),
+                onTap: () => Navigator.pop(context, ModoPDF.blanco),
               ),
-              title: const Text('Cuaderno completo',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Con todos los gastos registrados'),
-              onTap: () { Navigator.pop(context); _exportarPDF(ModoPDF.completo); },
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+
+    if (modo != null) await _exportarPDF(modo);
   }
 
-  // ── Nuevo cuaderno ────────────────────────────────────────────
+  List<Acampado> get _acampadosFiltrados {
+    final acampados = _cuaderno?.acampados ?? [];
+    final query = _normalize(_searchController.text);
+    if (query.isEmpty) return acampados;
+
+    final terms = query.split(' ').where((term) => term.isNotEmpty);
+    return acampados.where((a) {
+      final fullName = _normalize(a.nombreCompleto);
+      return terms.every(fullName.contains);
+    }).toList();
+  }
+
+  String _normalize(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _money(double value) {
+    final rounded = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+    return '$rounded €';
+  }
+
+  Color _saldoColor(double saldo) {
+    if (saldo <= 0) return const Color(0xFFB71C1C);
+    if (saldo < 5) return Colors.red.shade700;
+    if (saldo <= 10) return Colors.orange.shade700;
+    return Colors.green.shade700;
+  }
+
+  int _nextDia(Acampado acampado) {
+    if (acampado.gastos.isEmpty) return 1;
+    return acampado.gastos.map((g) => g.dia).reduce((a, b) => a > b ? a : b) + 1;
+  }
+
+  Future<void> _registrarGasto({Acampado? acampado}) async {
+    final acampados = _cuaderno?.acampados ?? [];
+    if (acampados.isEmpty) return;
+
+    final draft = await showDialog<_GastoDraft>(
+      context: context,
+      builder: (context) => _AddGastoDialog(
+        acampados: acampados,
+        acampadoInicial: acampado,
+      ),
+    );
+
+    if (draft == null) return;
+
+    final dia = _nextDia(draft.acampado);
+    final ok = await _service.registrarGasto(
+      _anioActual,
+      draft.acampado.id,
+      dia,
+      draft.cantidad,
+    );
+
+    if (!ok || !mounted) return;
+
+    setState(() {
+      final idx = _cuaderno!.acampados.indexWhere((a) => a.id == draft.acampado.id);
+      if (idx >= 0) {
+        _cuaderno!.acampados[idx].gastos.add(Gasto(dia: dia, cantidad: draft.cantidad));
+      }
+    });
+
+    final pendientes = await _service.getPendingOps(_anioActual);
+    if (mounted) setState(() => _pendientesCount = pendientes.length);
+  }
+
+  Future<void> _abrirFicha(Acampado acampado) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AcampadoDetalleScreen(
+          acampado: acampado,
+          anio: _anioActual,
+          service: _service,
+        ),
+      ),
+    );
+
+    if (changed == true && mounted) {
+      final pendientes = await _service.getPendingOps(_anioActual);
+      setState(() => _pendientesCount = pendientes.length);
+    }
+  }
 
   void _mostrarDialogoNuevoCuaderno() {
     showDialog(
@@ -136,704 +224,437 @@ class _KioskoScreenState extends State<KioskoScreen> {
         anio: _anioActual,
         onCreado: (acampados) async {
           Navigator.pop(context);
-          try {
-            await _service.crearCuaderno(_anioActual, acampados);
-          } catch (_) {
-            // El cuaderno puede haberse creado igualmente en el servidor.
-          }
+          await _service.crearCuaderno(_anioActual, acampados);
           await _cargar();
         },
       ),
     );
   }
 
-  // ── Añadir acampado a cuaderno existente ─────────────────────
-
-  void _mostrarDialogoAnadirAcampado() {
-    showDialog(
-      context: context,
-      builder: (_) => _AnadirAcampadoDialog(
-        onAnadido: (nombre, apellidos) async {
-          Navigator.pop(context);
-          try {
-            await _service.anadirAcampado(_anioActual, nombre, apellidos);
-            await _cargar();
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('$nombre $apellidos añadido ✓'),
-                backgroundColor: Colors.green.shade700,
-              ),
-            );
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al añadir acampado: $e'),
-                backgroundColor: Colors.red.shade700,
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  // ── Eliminar acampado ─────────────────────────────────────────
-
-  void _confirmarEliminarAcampado(Acampado a) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Eliminar acampado'),
-        content: Text('¿Seguro que quieres eliminar a ${a.nombreCompleto}?\nSe borrarán también todos sus gastos.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(context);
-              await _service.eliminarAcampado(_anioActual, a.id);
-              await _cargar();
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Detalle acampado ──────────────────────────────────────────
-
-  void _mostrarDetalleAcampado(Acampado a) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => _DetalleAcampadoSheet(
-        acampado: a,
-        anio: _anioActual,
-        service: _service,
-        onUpdated: _cargar,
-      ),
-    );
-  }
-
-  // ── Build ─────────────────────────────────────────────────────
-
-  Color _colorSaldo(double saldo) {
-    if (saldo <= 0) return Colors.red.shade700;
-    if (saldo < 5) return Colors.orange.shade700;
-    return Colors.green.shade700;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text('Kiosko $_anioActual'),
         backgroundColor: const Color(0xFF1A5FA8),
         foregroundColor: Colors.white,
         actions: [
-          // Botón sincronizar (solo si hay pendientes)
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'PDF',
+            onPressed: _mostrarMenuPDF,
+          ),
           if (_pendientesCount > 0)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.sync),
-                  tooltip: 'Sincronizar pendientes',
-                  onPressed: _sincronizar,
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                        color: Colors.orange, shape: BoxShape.circle),
-                    child: Text('$_pendientesCount',
-                        style: const TextStyle(fontSize: 10, color: Colors.white)),
-                  ),
-                ),
-              ],
+            IconButton(
+              icon: Icon(Icons.sync, color: _offline ? Colors.orange.shade200 : Colors.white),
+              tooltip: 'Sincronizar',
+              onPressed: _syncing ? null : _sincronizar,
             ),
-
-          // Botón PDF
-          if (_cuaderno != null)
-            _exportandoPDF
-                ? const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.picture_as_pdf),
-                    tooltip: 'Exportar PDF',
-                    onPressed: _mostrarMenuPDF,
-                  ),
-
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar',
+            onPressed: _loading ? null : _cargar,
+          ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _cuaderno == null
               ? _buildVacio()
-              : _buildLista(),
-      floatingActionButton: _loading
+              : _buildPanel(),
+      floatingActionButton: _cuaderno == null
           ? null
-          : _cuaderno == null
-              ? FloatingActionButton.extended(
-                  onPressed: _mostrarDialogoNuevoCuaderno,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nuevo cuaderno'),
-                  backgroundColor: const Color(0xFF1A5FA8),
-                )
-              : FloatingActionButton(
-                  onPressed: _mostrarDialogoAnadirAcampado,
-                  backgroundColor: const Color(0xFF1A5FA8),
-                  tooltip: 'Añadir acampado',
-                  child: const Icon(Icons.person_add, color: Colors.white),
-                ),
+          : FloatingActionButton.extended(
+              onPressed: () => _registrarGasto(),
+              backgroundColor: const Color(0xFF1A5FA8),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Registrar gasto'),
+            ),
     );
+  }
+
+  Widget _buildPanel() {
+    final acampados = _acampadosFiltrados;
+
+    return Column(
+      children: [
+        _buildEstadoConexion(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Buscar acampado...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Limpiar',
+                      onPressed: _searchController.clear,
+                    ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: _ResumenKiosko(acampados: _cuaderno!.acampados, money: _money),
+        ),
+        Expanded(
+          child: acampados.isEmpty
+              ? const Center(child: Text('Sin resultados'))
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                  itemCount: acampados.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final acampado = acampados[index];
+                    return _AcampadoCard(
+                      acampado: acampado,
+                      money: _money,
+                      saldoColor: _saldoColor(acampado.saldo),
+                      onTap: () => _abrirFicha(acampado),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEstadoConexion() {
+    if (_syncing) {
+      return _StatusBanner(
+        color: Colors.blue.shade700,
+        icon: Icons.sync,
+        text: 'Sincronizando...',
+      );
+    }
+
+    if (_synced) {
+      return _StatusBanner(
+        color: Colors.green.shade700,
+        icon: Icons.check_circle_outline,
+        text: 'Todo sincronizado',
+      );
+    }
+
+    if (_offline || _pendientesCount > 0) {
+      final pendingText = _pendientesCount == 1
+          ? '1 operación pendiente'
+          : '$_pendientesCount operaciones pendientes';
+      return _StatusBanner(
+        color: Colors.orange.shade800,
+        icon: Icons.wifi_off,
+        text: _offline ? 'Sin conexión · $pendingText' : pendingText,
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildVacio() {
+    final title = _notFound ? 'No hay cuaderno para $_anioActual' : 'No se pudo cargar el cuaderno';
+    final detail = _loadError == null
+        ? null
+        : 'La API responde, pero el navegador puede bloquear la lectura si faltan cabeceras CORS.';
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.store, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text('No hay cuaderno para $_anioActual',
-              style: const TextStyle(fontSize: 18, color: Colors.grey)),
-          const SizedBox(height: 8),
-          const Text('Pulsa el botón para crear uno nuevo',
-              style: TextStyle(color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLista() {
-    final acampados = _cuaderno!.acampados;
-    return Column(
-      children: [
-        // Banner offline
-        if (_offline)
-          Container(
-            color: Colors.orange.shade100,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: const Row(
-              children: [
-                Icon(Icons.wifi_off, color: Colors.orange, size: 16),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Modo sin conexión — los cambios se guardan localmente',
-                    style: TextStyle(color: Colors.orange, fontSize: 12),
-                  ),
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _notFound ? Icons.store_outlined : Icons.cloud_off_outlined,
+              size: 56,
+              color: Colors.grey.shade600,
             ),
-          ),
-
-        // Resumen global
-        Container(
-          color: const Color(0xFFE8F0FB),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStat('Acampados', '${acampados.length}', Colors.blue),
-              _buildStat(
-                'Traído',
-                '${acampados.fold(0.0, (s, a) => s + a.totalTraido).toStringAsFixed(2)}€',
-                Colors.green,
-              ),
-              _buildStat(
-                'Gastado',
-                '${acampados.fold(0.0, (s, a) => s + a.totalGastado).toStringAsFixed(2)}€',
-                Colors.red,
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            if (detail != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                detail,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade700),
               ),
             ],
-          ),
-        ),
-
-        // Lista
-        Expanded(
-          child: ListView.separated(
-            itemCount: acampados.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, indent: 16, endIndent: 16),
-            itemBuilder: (context, i) {
-              final a = acampados[i];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFF1A5FA8),
-                  child: Text(
-                    a.nombre.isNotEmpty ? a.nombre[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                title: Text(a.nombreCompleto,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  'Traído: ${a.totalTraido.toStringAsFixed(2)}€  ·  '
-                  'Gastado: ${a.totalGastado.toStringAsFixed(2)}€',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Chip de saldo
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _colorSaldo(a.saldo).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${a.saldo.toStringAsFixed(2)}€',
-                        style: TextStyle(
-                          color: _colorSaldo(a.saldo),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    // Botón eliminar acampado
-                    IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: Colors.red.shade300, size: 20),
-                      tooltip: 'Eliminar acampado',
-                      onPressed: () => _confirmarEliminarAcampado(a),
-                    ),
-                  ],
-                ),
-                onTap: () => _mostrarDetalleAcampado(a),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStat(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(value,
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-        Text(label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      ],
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  SHEET DE DETALLE
-//  Mantiene estado local → no se cierra al añadir/eliminar gastos
-// ══════════════════════════════════════════════════════════════════
-
-class _DetalleAcampadoSheet extends StatefulWidget {
-  final Acampado acampado;
-  final int anio;
-  final KioskoService service;
-  final VoidCallback onUpdated;
-
-  const _DetalleAcampadoSheet({
-    required this.acampado,
-    required this.anio,
-    required this.service,
-    required this.onUpdated,
-  });
-
-  @override
-  State<_DetalleAcampadoSheet> createState() => _DetalleAcampadoSheetState();
-}
-
-class _DetalleAcampadoSheetState extends State<_DetalleAcampadoSheet> {
-  final _diaController = TextEditingController();
-  final _cantidadController = TextEditingController();
-  bool _guardando = false;
-
-  // Estado local — se actualiza sin cerrar el sheet
-  late List<Gasto> _gastos;
-  late double _totalTraido;
-
-  @override
-  void initState() {
-    super.initState();
-    _gastos = List.from(widget.acampado.gastos);
-    _totalTraido = widget.acampado.totalTraido;
-  }
-
-  @override
-  void dispose() {
-    _diaController.dispose();
-    _cantidadController.dispose();
-    super.dispose();
-  }
-
-  double get _totalGastado => _gastos.fold(0.0, (s, g) => s + g.cantidad);
-  double get _saldo => _totalTraido - _totalGastado;
-
-  // ── Añadir gasto — el sheet permanece abierto ─────────────────
-
-  Future<void> _agregarGasto() async {
-    final dia = int.tryParse(_diaController.text.trim());
-    final cantidad = double.tryParse(
-        _cantidadController.text.trim().replaceAll(',', '.'));
-
-    if (dia == null || cantidad == null || cantidad <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Introduce un día y cantidad válidos')),
-      );
-      return;
-    }
-
-    setState(() => _guardando = true);
-    await widget.service.registrarGasto(
-        widget.anio, widget.acampado.id, dia, cantidad);
-
-    // Actualizar estado local sin cerrar el sheet
-    setState(() {
-      _gastos.add(Gasto(dia: dia, cantidad: cantidad));
-      _guardando = false;
-    });
-
-    _diaController.clear();
-    _cantidadController.clear();
-
-    // Notificar a la lista principal para que actualice el saldo
-    widget.onUpdated();
-  }
-
-  // ── Eliminar gasto — el sheet permanece abierto ───────────────
-
-  Future<void> _eliminarGasto(int index) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Eliminar gasto'),
-        content: Text(
-          'Día ${_gastos[index].dia} — ${_gastos[index].cantidad.toStringAsFixed(2)}€\n\n¿Seguro que quieres eliminarlo?',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    await widget.service.eliminarGasto(
-        widget.anio, widget.acampado.id, index);
-
-    // Actualizar estado local sin cerrar el sheet
-    setState(() => _gastos.removeAt(index));
-    widget.onUpdated();
-  }
-
-  // ── Editar dinero traído — el sheet permanece abierto ─────────
-
-  Future<void> _editarDinero() async {
-    final controller = TextEditingController(
-        text: _totalTraido == 0 ? '' : _totalTraido.toStringAsFixed(2));
-
-    final result = await showDialog<double>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Dinero traído'),
-        content: TextField(
-          controller: controller,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Cantidad (€)',
-            suffixText: '€',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A5FA8)),
-            onPressed: () {
-              final v = double.tryParse(
-                  controller.text.trim().replaceAll(',', '.'));
-              Navigator.pop(context, v);
-            },
-            child: const Text('Guardar',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (result == null || result < 0) return;
-
-    await widget.service.actualizarDinero(
-        widget.anio, widget.acampado.id, result);
-
-    // Actualizar estado local sin cerrar el sheet
-    setState(() => _totalTraido = result);
-    widget.onUpdated();
-  }
-
-  // ── Build ─────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    final colorSaldo = _saldo < 0
-        ? Colors.red.shade700
-        : _saldo < 5
-            ? Colors.orange.shade700
-            : Colors.green.shade700;
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.75,
-      maxChildSize: 0.95,
-      builder: (_, scrollController) => Padding(
-        padding: EdgeInsets.only(
-          left: 16, right: 16, top: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: ListView(
-          controller: scrollController,
-          children: [
-            // ── Cabecera ──────────────────────────────────────
-            Row(
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    widget.acampado.nombreCompleto,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                OutlinedButton.icon(
+                  onPressed: _cargar,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualizar'),
                 ),
+                if (_notFound)
+                  ElevatedButton.icon(
+                    onPressed: _mostrarDialogoNuevoCuaderno,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Crear cuaderno'),
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
-
-            // ── Tarjetas de resumen ───────────────────────────
-            Row(
-              children: [
-                _buildResumenChip(
-                  'Traído',
-                  '${_totalTraido.toStringAsFixed(2)}€',
-                  Colors.blue,
-                  onTap: _editarDinero,
-                  editIcon: true,
-                ),
-                const SizedBox(width: 8),
-                _buildResumenChip(
-                  'Gastado',
-                  '${_totalGastado.toStringAsFixed(2)}€',
-                  Colors.orange,
-                ),
-                const SizedBox(width: 8),
-                _buildResumenChip(
-                  'Saldo',
-                  '${_saldo.toStringAsFixed(2)}€',
-                  colorSaldo,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-            const Divider(),
-
-            // ── Lista de gastos ───────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Gastos registrados',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('${_gastos.length} gastos',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            if (_gastos.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Sin gastos registrados',
-                    style: TextStyle(color: Colors.grey)),
-              )
-            else
-              ...List.generate(_gastos.length, (i) {
-                double acumulado = 0;
-                for (int k = 0; k <= i; k++) {
-                  acumulado += _gastos[k].cantidad;
-                }
-                final g = _gastos[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  decoration: BoxDecoration(
-                    color: i % 2 == 0
-                        ? const Color(0xFFF7FAFD)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: const Color(0xFFE8F0FB),
-                      child: Text(
-                        'D${g.dia}',
-                        style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A5FA8)),
-                      ),
-                    ),
-                    title: Text('${g.cantidad.toStringAsFixed(2)}€',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      'Acumulado: ${acumulado.toStringAsFixed(2)}€',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: Colors.red.shade300, size: 20),
-                      tooltip: 'Eliminar gasto',
-                      onPressed: () => _eliminarGasto(i),
-                    ),
-                  ),
-                );
-              }),
-
-            const SizedBox(height: 8),
-            const Divider(),
-
-            // ── Formulario añadir gasto ───────────────────────
-            const Text('Añadir gasto',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _diaController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Día',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: _cantidadController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Cantidad',
-                      suffixText: '€',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) => _agregarGasto(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _guardando ? null : _agregarGasto,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A5FA8),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: _guardando
-                        ? const SizedBox(
-                            width: 16, height: 16,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Text('Añadir'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildResumenChip(
-    String label,
-    String value,
-    Color color, {
-    VoidCallback? onTap,
-    bool editIcon = false,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.3)),
+class AcampadoDetalleScreen extends StatefulWidget {
+  final Acampado acampado;
+  final int anio;
+  final KioskoService service;
+
+  const AcampadoDetalleScreen({
+    super.key,
+    required this.acampado,
+    required this.anio,
+    required this.service,
+  });
+
+  @override
+  State<AcampadoDetalleScreen> createState() => _AcampadoDetalleScreenState();
+}
+
+class _AcampadoDetalleScreenState extends State<AcampadoDetalleScreen> {
+  bool _changed = false;
+
+  double get _totalGastado => widget.acampado.totalGastado;
+  double get _saldo => widget.acampado.saldo;
+
+  String _money(double value) {
+    final rounded = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+    return '$rounded €';
+  }
+
+  Color _saldoColor(double saldo) {
+    if (saldo <= 0) return const Color(0xFFB71C1C);
+    if (saldo < 5) return Colors.red.shade700;
+    if (saldo <= 10) return Colors.orange.shade700;
+    return Colors.green.shade700;
+  }
+
+  int _nextDia() {
+    if (widget.acampado.gastos.isEmpty) return 1;
+    return widget.acampado.gastos.map((g) => g.dia).reduce((a, b) => a > b ? a : b) + 1;
+  }
+
+  Future<void> _anadirGasto() async {
+    final draft = await showDialog<_GastoDraft>(
+      context: context,
+      builder: (context) => _AddGastoDialog(
+        acampados: [widget.acampado],
+        acampadoInicial: widget.acampado,
+      ),
+    );
+
+    if (draft == null) return;
+
+    final dia = _nextDia();
+    final ok = await widget.service.registrarGasto(
+      widget.anio,
+      widget.acampado.id,
+      dia,
+      draft.cantidad,
+    );
+
+    if (!ok || !mounted) return;
+
+    setState(() {
+      widget.acampado.gastos.add(Gasto(dia: dia, cantidad: draft.cantidad));
+      _changed = true;
+    });
+  }
+
+  Future<void> _editarDineroInicial() async {
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => _MoneyDialog(
+        title: 'Dinero inicial',
+        initialValue: widget.acampado.totalTraido,
+      ),
+    );
+
+    if (result == null) return;
+
+    final ok = await widget.service.actualizarDinero(
+      widget.anio,
+      widget.acampado.id,
+      result,
+    );
+
+    if (!ok || !mounted) return;
+
+    setState(() {
+      widget.acampado.totalTraido = result;
+      _changed = true;
+    });
+  }
+
+  Future<void> _eliminarGasto(int index) async {
+    final ok = await widget.service.eliminarGasto(widget.anio, widget.acampado.id, index);
+    if (!ok || !mounted) return;
+
+    setState(() {
+      widget.acampado.gastos.removeAt(index);
+      _changed = true;
+    });
+  }
+
+  Future<bool> _onWillPop() async {
+    Navigator.pop(context, _changed);
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final saldoColor = _saldoColor(_saldo);
+
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: AppBar(
+          title: Text(widget.acampado.nombreCompleto.trim()),
+          backgroundColor: const Color(0xFF1A5FA8),
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context, _changed),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: saldoColor.withOpacity(0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: color,
-                          fontWeight: FontWeight.w600)),
-                  if (editIcon) ...[
-                    const SizedBox(width: 2),
-                    Icon(Icons.edit, size: 10, color: color),
-                  ],
+                  Text('Saldo', style: TextStyle(color: Colors.grey.shade700)),
+                  const SizedBox(height: 8),
+                  Text(
+                    _money(_saldo),
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w800,
+                      color: saldoColor,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 14,
-                      color: color,
-                      fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _MetricBox(label: 'Traído', value: _money(widget.acampado.totalTraido)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MetricBox(label: 'Gastado', value: _money(_totalGastado)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            const Text(
+              'Historial',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            if (widget.acampado.gastos.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Text('Sin gastos', style: TextStyle(color: Colors.grey.shade700)),
+              )
+            else
+              ...List.generate(widget.acampado.gastos.length, (index) {
+                final gasto = widget.acampado.gastos[index];
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Día ${gasto.dia}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _money(gasto.cantidad),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete_outline, color: Colors.red.shade600),
+                          tooltip: 'Borrar',
+                          onPressed: () => _eliminarGasto(index),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _editarDineroInicial,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Editar dinero inicial'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _anadirGasto,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Añadir gasto'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A5FA8),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -842,22 +663,440 @@ class _DetalleAcampadoSheetState extends State<_DetalleAcampadoSheet> {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  DIÁLOGO NUEVO CUADERNO (lista de nombres)
-// ══════════════════════════════════════════════════════════════════
+class _StatusBanner extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  const _StatusBanner({
+    required this.color,
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: color,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.white),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResumenKiosko extends StatelessWidget {
+  final List<Acampado> acampados;
+  final String Function(double) money;
+
+  const _ResumenKiosko({
+    required this.acampados,
+    required this.money,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalTraido = acampados.fold(0.0, (sum, a) => sum + a.totalTraido);
+    final totalGastado = acampados.fold(0.0, (sum, a) => sum + a.totalGastado);
+    final saldo = totalTraido - totalGastado;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Wrap(
+        spacing: 20,
+        runSpacing: 12,
+        children: [
+          _SummaryItem(label: 'Acampados', value: '${acampados.length}'),
+          _SummaryItem(label: 'Total traído', value: money(totalTraido)),
+          _SummaryItem(label: 'Gastado', value: money(totalGastado)),
+          _SummaryItem(label: 'Saldo restante', value: money(saldo)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SummaryItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 136,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AcampadoCard extends StatelessWidget {
+  final Acampado acampado;
+  final String Function(double) money;
+  final Color saldoColor;
+  final VoidCallback onTap;
+
+  const _AcampadoCard({
+    required this.acampado,
+    required this.money,
+    required this.saldoColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                acampado.nombreCompleto.trim(),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _InlineMoney(label: 'Traído', value: money(acampado.totalTraido))),
+                  Expanded(child: _InlineMoney(label: 'Gastado', value: money(acampado.totalGastado))),
+                  Expanded(
+                    child: _InlineMoney(
+                      label: 'Saldo',
+                      value: money(acampado.saldo),
+                      valueColor: saldoColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Abrir ficha →',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineMoney extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _InlineMoney({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricBox extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetricBox({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey.shade700)),
+          const SizedBox(height: 6),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class _GastoDraft {
+  final Acampado acampado;
+  final double cantidad;
+
+  const _GastoDraft({required this.acampado, required this.cantidad});
+}
+
+class _AddGastoDialog extends StatefulWidget {
+  final List<Acampado> acampados;
+  final Acampado? acampadoInicial;
+
+  const _AddGastoDialog({
+    required this.acampados,
+    this.acampadoInicial,
+  });
+
+  @override
+  State<_AddGastoDialog> createState() => _AddGastoDialogState();
+}
+
+class _AddGastoDialogState extends State<_AddGastoDialog> {
+  final TextEditingController _cantidadController = TextEditingController();
+  Acampado? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.acampadoInicial ?? (widget.acampados.length == 1 ? widget.acampados.first : null);
+  }
+
+  @override
+  void dispose() {
+    _cantidadController.dispose();
+    super.dispose();
+  }
+
+  String _normalize(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  void _guardar() {
+    final cantidad = double.tryParse(_cantidadController.text.trim().replaceAll(',', '.'));
+    if (_selected == null || cantidad == null || cantidad <= 0) return;
+
+    Navigator.pop(
+      context,
+      _GastoDraft(acampado: _selected!, cantidad: cantidad),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final needsPicker = widget.acampadoInicial == null && widget.acampados.length > 1;
+
+    return AlertDialog(
+      title: const Text('Añadir gasto'),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (needsPicker) ...[
+              Autocomplete<Acampado>(
+                displayStringForOption: (a) => a.nombreCompleto.trim(),
+                optionsBuilder: (textEditingValue) {
+                  final query = _normalize(textEditingValue.text);
+                  if (query.isEmpty) return widget.acampados.take(8);
+                  return widget.acampados.where((a) {
+                    return _normalize(a.nombreCompleto).contains(query);
+                  }).take(8);
+                },
+                onSelected: (a) => setState(() => _selected = a),
+                fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Acampado',
+                      border: OutlineInputBorder(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _cantidadController,
+              autofocus: !needsPicker,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Cantidad',
+                suffixText: '€',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _guardar(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _guardar,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A5FA8),
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _MoneyDialog extends StatefulWidget {
+  final String title;
+  final double initialValue;
+
+  const _MoneyDialog({
+    required this.title,
+    required this.initialValue,
+  });
+
+  @override
+  State<_MoneyDialog> createState() => _MoneyDialogState();
+}
+
+class _MoneyDialogState extends State<_MoneyDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialValue == 0 ? '' : widget.initialValue.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _guardar() {
+    final value = double.tryParse(_controller.text.trim().replaceAll(',', '.'));
+    if (value == null || value < 0) return;
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          suffixText: '€',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (_) => _guardar(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _guardar,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A5FA8),
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
 
 class _NuevoCuadernoDialog extends StatefulWidget {
   final int anio;
-  final Function(List<Map<String, dynamic>>) onCreado;
+  final Future<void> Function(List<Map<String, dynamic>>) onCreado;
 
-  const _NuevoCuadernoDialog({required this.anio, required this.onCreado});
+  const _NuevoCuadernoDialog({
+    required this.anio,
+    required this.onCreado,
+  });
 
   @override
   State<_NuevoCuadernoDialog> createState() => _NuevoCuadernoDialogState();
 }
 
 class _NuevoCuadernoDialogState extends State<_NuevoCuadernoDialog> {
-  final _controller = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
   bool _creando = false;
 
   @override
@@ -866,69 +1105,51 @@ class _NuevoCuadernoDialogState extends State<_NuevoCuadernoDialog> {
     super.dispose();
   }
 
-  void _crear() {
+  Future<void> _crear() async {
     final lineas = _controller.text
         .trim()
         .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
         .toList();
 
-    if (lineas.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Escribe al menos un nombre')),
-      );
-      return;
-    }
+    if (lineas.isEmpty) return;
 
     final acampados = lineas.map((linea) {
-      final partes = linea.split(' ');
-      final nombre = partes.first;
-      final apellidos =
-          partes.length > 1 ? partes.sublist(1).join(' ') : '';
+      final partes = linea.split(RegExp(r'\s+'));
       return {
-        'nombre': nombre,
-        'apellidos': apellidos,
+        'nombre': partes.first,
+        'apellidos': partes.length > 1 ? partes.sublist(1).join(' ') : '',
         'totalTraido': 0,
       };
     }).toList();
 
     setState(() => _creando = true);
-    widget.onCreado(acampados);
+    try {
+      await widget.onCreado(acampados);
+    } finally {
+      if (mounted) setState(() => _creando = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text('Nuevo cuaderno ${widget.anio}'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Un acampado por línea:\nNombre Apellido1 Apellido2',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _controller,
-              maxLines: 12,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText:
-                    'Adrián Salinero Romanillos\nAinhoa Hinojosa Torres\n...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
+      content: TextField(
+        controller: _controller,
+        maxLines: 10,
+        autofocus: true,
+        decoration: const InputDecoration(
+          hintText: 'Nombre Apellidos',
+          border: OutlineInputBorder(),
         ),
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar')),
+          onPressed: _creando ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
         ElevatedButton(
           onPressed: _creando ? null : _crear,
           style: ElevatedButton.styleFrom(
@@ -937,93 +1158,11 @@ class _NuevoCuadernoDialogState extends State<_NuevoCuadernoDialog> {
           ),
           child: _creando
               ? const SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2))
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
               : const Text('Crear'),
-        ),
-      ],
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  DIÁLOGO AÑADIR ACAMPADO (a cuaderno existente)
-// ══════════════════════════════════════════════════════════════════
-
-class _AnadirAcampadoDialog extends StatefulWidget {
-  final Function(String nombre, String apellidos) onAnadido;
-
-  const _AnadirAcampadoDialog({required this.onAnadido});
-
-  @override
-  State<_AnadirAcampadoDialog> createState() => _AnadirAcampadoDialogState();
-}
-
-class _AnadirAcampadoDialogState extends State<_AnadirAcampadoDialog> {
-  final _nombreController = TextEditingController();
-  final _apellidosController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nombreController.dispose();
-    _apellidosController.dispose();
-    super.dispose();
-  }
-
-  void _confirmar() {
-    final nombre = _nombreController.text.trim();
-    final apellidos = _apellidosController.text.trim();
-
-    if (nombre.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El nombre no puede estar vacío')),
-      );
-      return;
-    }
-
-    widget.onAnadido(nombre, apellidos);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Añadir acampado'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nombreController,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Nombre',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _apellidosController,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Apellidos',
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: (_) => _confirmar(),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar')),
-        ElevatedButton(
-          onPressed: _confirmar,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1A5FA8),
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Añadir'),
         ),
       ],
     );
