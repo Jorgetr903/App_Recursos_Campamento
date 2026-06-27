@@ -780,7 +780,7 @@ class _AcampadoCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade200),
@@ -790,9 +790,9 @@ class _AcampadoCard extends StatelessWidget {
             children: [
               Text(
                 acampado.nombreCompleto.trim(),
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               Row(
                 children: [
                   Expanded(child: _InlineMoney(label: 'Traído', value: money(acampado.totalTraido))),
@@ -805,17 +805,6 @@ class _AcampadoCard extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'Abrir ficha →',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
               ),
             ],
           ),
@@ -847,7 +836,7 @@ class _InlineMoney extends StatelessWidget {
           value,
           style: TextStyle(
             color: valueColor,
-            fontSize: 18,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
         ),
