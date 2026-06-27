@@ -21,12 +21,14 @@ class _KioskoScreenState extends State<KioskoScreen> {
   bool _notFound = false;
   int _pendientesCount = 0;
   Object? _loadError;
+  late int _anioSeleccionado;
 
-  int get _anioActual => DateTime.now().year;
+  int get _anioActual => _anioSeleccionado;
 
   @override
   void initState() {
     super.initState();
+    _anioSeleccionado = DateTime.now().year;
     _searchController.addListener(() => setState(() {}));
     _cargar();
   }
@@ -160,46 +162,6 @@ class _KioskoScreenState extends State<KioskoScreen> {
     return Colors.green.shade700;
   }
 
-  int _nextDia(Acampado acampado) {
-    if (acampado.gastos.isEmpty) return 1;
-    return acampado.gastos.map((g) => g.dia).reduce((a, b) => a > b ? a : b) + 1;
-  }
-
-  Future<void> _registrarGasto({Acampado? acampado}) async {
-    final acampados = _cuaderno?.acampados ?? [];
-    if (acampados.isEmpty) return;
-
-    final draft = await showDialog<_GastoDraft>(
-      context: context,
-      builder: (context) => _AddGastoDialog(
-        acampados: acampados,
-        acampadoInicial: acampado,
-      ),
-    );
-
-    if (draft == null) return;
-
-    final dia = _nextDia(draft.acampado);
-    final ok = await _service.registrarGasto(
-      _anioActual,
-      draft.acampado.id,
-      dia,
-      draft.cantidad,
-    );
-
-    if (!ok || !mounted) return;
-
-    setState(() {
-      final idx = _cuaderno!.acampados.indexWhere((a) => a.id == draft.acampado.id);
-      if (idx >= 0) {
-        _cuaderno!.acampados[idx].gastos.add(Gasto(dia: dia, cantidad: draft.cantidad));
-      }
-    });
-
-    final pendientes = await _service.getPendingOps(_anioActual);
-    if (mounted) setState(() => _pendientesCount = pendientes.length);
-  }
-
   Future<void> _abrirFicha(Acampado acampado) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -231,6 +193,25 @@ class _KioskoScreenState extends State<KioskoScreen> {
     );
   }
 
+  Future<void> _mostrarDialogoCambiarAnio() async {
+    final year = await showDialog<int>(
+      context: context,
+      builder: (_) => _YearDialog(initialYear: _anioActual),
+    );
+
+    if (year == null || year == _anioActual || !mounted) return;
+
+    setState(() {
+      _anioSeleccionado = year;
+      _cuaderno = null;
+      _notFound = false;
+      _loadError = null;
+      _pendientesCount = 0;
+    });
+    _searchController.clear();
+    await _cargar();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,6 +221,11 @@ class _KioskoScreenState extends State<KioskoScreen> {
         backgroundColor: const Color(0xFF1A5FA8),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Cambiar año',
+            onPressed: _loading ? null : _mostrarDialogoCambiarAnio,
+          ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
             tooltip: 'PDF',
@@ -263,15 +249,6 @@ class _KioskoScreenState extends State<KioskoScreen> {
           : _cuaderno == null
               ? _buildVacio()
               : _buildPanel(),
-      floatingActionButton: _cuaderno == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _registrarGasto(),
-              backgroundColor: const Color(0xFF1A5FA8),
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add),
-              label: const Text('Registrar gasto'),
-            ),
     );
   }
 
@@ -282,7 +259,7 @@ class _KioskoScreenState extends State<KioskoScreen> {
       children: [
         _buildEstadoConexion(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
           child: TextField(
             controller: _searchController,
             textInputAction: TextInputAction.search,
@@ -310,16 +287,16 @@ class _KioskoScreenState extends State<KioskoScreen> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
           child: _ResumenKiosko(acampados: _cuaderno!.acampados, money: _money),
         ),
         Expanded(
           child: acampados.isEmpty
               ? const Center(child: Text('Sin resultados'))
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                   itemCount: acampados.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (context, index) {
                     final acampado = acampados[index];
                     return _AcampadoCard(
@@ -515,6 +492,33 @@ class _AcampadoDetalleScreenState extends State<AcampadoDetalleScreen> {
   }
 
   Future<void> _eliminarGasto(int index) async {
+    final gasto = widget.acampado.gastos[index];
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Borrar gasto'),
+        content: Text(
+          '¿Seguro que quieres borrar el gasto del Día ${gasto.dia} por ${_money(gasto.cantidad)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     final ok = await widget.service.eliminarGasto(widget.anio, widget.acampado.id, index);
     if (!ok || !mounted) return;
 
@@ -713,20 +717,18 @@ class _ResumenKiosko extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Wrap(
-        spacing: 20,
-        runSpacing: 12,
+      child: Row(
         children: [
-          _SummaryItem(label: 'Acampados', value: '${acampados.length}'),
-          _SummaryItem(label: 'Total traído', value: money(totalTraido)),
-          _SummaryItem(label: 'Gastado', value: money(totalGastado)),
-          _SummaryItem(label: 'Saldo restante', value: money(saldo)),
+          Expanded(child: _SummaryItem(label: 'Acampados', value: '${acampados.length}')),
+          Expanded(child: _SummaryItem(label: 'Total traído', value: money(totalTraido))),
+          Expanded(child: _SummaryItem(label: 'Gastado', value: money(totalGastado))),
+          Expanded(child: _SummaryItem(label: 'Saldo restante', value: money(saldo))),
         ],
       ),
     );
@@ -741,19 +743,17 @@ class _SummaryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 136,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey.shade700, fontSize: 10)),
+        const SizedBox(height: 1),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
@@ -780,7 +780,7 @@ class _AcampadoCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade200),
@@ -792,7 +792,7 @@ class _AcampadoCard extends StatelessWidget {
                 acampado.nombreCompleto.trim(),
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Expanded(child: _InlineMoney(label: 'Traído', value: money(acampado.totalTraido))),
@@ -806,7 +806,7 @@ class _AcampadoCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
@@ -1165,6 +1165,34 @@ class _NuevoCuadernoDialogState extends State<_NuevoCuadernoDialog> {
               : const Text('Crear'),
         ),
       ],
+    );
+  }
+}
+
+
+class _YearDialog extends StatelessWidget {
+  final int initialYear;
+  const _YearDialog({required this.initialYear});
+
+  @override
+  Widget build(BuildContext context) {
+    final years = List.generate(5, (i) => initialYear - 1 + i);
+    return SimpleDialog(
+      title: const Text('Seleccionar año'),
+      children: years.map((y) {
+        final isCurrent = y == initialYear;
+        return SimpleDialogOption(
+          onPressed: () => Navigator.pop(context, y),
+          child: Text(
+            y.toString(),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+              color: isCurrent ? const Color(0xFF1A5FA8) : null,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
