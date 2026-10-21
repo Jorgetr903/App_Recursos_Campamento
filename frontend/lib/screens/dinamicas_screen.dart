@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../models/recurso_model.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/resource_screen.dart';
+import '../widgets/subir_recurso_fab.dart';
 import '../main.dart';
 
 class DinamicasScreen extends StatefulWidget {
@@ -144,6 +145,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
             },
           ),
         ),
+        floatingActionButton: const SubirRecursoFab(tipo: 'dinamica'),        
         body: Column(
           children: [
             Padding(
@@ -196,6 +198,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                 controller: _scrollController,
                 loading: loading,
                 hasMore: hasMore,
+                bottomPadding: 88,                
               ),
             ),
           ],

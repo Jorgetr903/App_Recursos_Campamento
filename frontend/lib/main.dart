@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'widgets/iconos.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/formaciones_screen.dart';
 import 'screens/actividades_screen.dart';
@@ -161,7 +161,7 @@ class _MainNavigationState extends State<MainNavigation> {
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
           const BottomNavigationBarItem(icon: Icon(Icons.school), label: "Formaciones"),
           const BottomNavigationBarItem(icon: Icon(Icons.sports), label: "Actividades"),
-          BottomNavigationBarItem(icon: Icon(MdiIcons.cross), label: "Dinámicas"),
+          BottomNavigationBarItem(icon: Icon(iconoCruz), label: "Dinámicas"),
           const BottomNavigationBarItem(icon: Icon(Icons.favorite), label: "Favoritos"),
           const BottomNavigationBarItem(icon: Icon(Icons.store), label: "Kiosko",),
         ],

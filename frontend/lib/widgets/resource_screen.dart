@@ -15,6 +15,7 @@ class ResourceScreen extends StatelessWidget {
   final ScrollController? controller;
   final bool loading;
   final bool hasMore;
+  final double bottomPadding;
 
   const ResourceScreen({
     super.key,
@@ -22,6 +23,7 @@ class ResourceScreen extends StatelessWidget {
     this.controller,
     this.loading = false,
     this.hasMore = false,
+    this.bottomPadding = 0,
   });
 
   Future<void> _downloadFile(Recurso recurso) async {
@@ -60,6 +62,7 @@ class ResourceScreen extends StatelessWidget {
 
     return ListView.builder(
       controller: controller,
+      padding: bottomPadding > 0 ? EdgeInsets.only(bottom: bottomPadding) : null, 
       itemCount: recursos.length + (hasMore || loading ? 1 : 0),
       itemBuilder: (context, index) {
         if (index < recursos.length) {
