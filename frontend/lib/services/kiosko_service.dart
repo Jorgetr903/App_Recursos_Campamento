@@ -1,27 +1,25 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:CSP/web_utils.dart'
+    if (dart.library.io) 'package:CSP/web_utils_stub.dart' as platform;
 
-// ── Modelos ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  MODELOS
+// ══════════════════════════════════════════════════════════════════
 
 class Gasto {
   final int dia;
   final double cantidad;
 
-  Gasto({
-    required this.dia,
-    required this.cantidad,
-  });
+  Gasto({required this.dia, required this.cantidad});
 
   factory Gasto.fromJson(Map<String, dynamic> json) => Gasto(
-        dia: json['dia'] as int,
+        dia: (json['dia'] as num).toInt(),
         cantidad: (json['cantidad'] as num).toDouble(),
       );
 
-  Map<String, dynamic> toJson() => {
-        'dia': dia,
-        'cantidad': cantidad,
-      };
+  Map<String, dynamic> toJson() => {'dia': dia, 'cantidad': cantidad};
 }
 
 class Acampado {
@@ -92,17 +90,38 @@ class CuadernoKiosko {
       };
 }
 
-// ── Servicio ──────────────────────────────────────────────────────────────────
+enum ModoPDF { blanco, completo }
+
+class KioskoLoadResult {
+  final CuadernoKiosko? cuaderno;
+  final bool fromCache;
+  final bool notFound;
+  final Object? error;
+
+  const KioskoLoadResult({
+    required this.cuaderno,
+    this.fromCache = false,
+    this.notFound = false,
+    this.error,
+  });
+
+  bool get hasError => error != null;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SERVICIO
+// ══════════════════════════════════════════════════════════════════
 
 class KioskoService {
   static const String _baseUrl = 'https://recursos-monitores.onrender.com/api/kiosko';
   static const String _cacheKey = 'kiosko_cache';
 
   final http.Client _client;
-
   KioskoService({http.Client? client}) : _client = client ?? http.Client();
 
-  // ── Cache local ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  //  Cache local
+  // ─────────────────────────────────────────────
 
   Future<void> _saveToCache(CuadernoKiosko cuaderno) async {
     final prefs = await SharedPreferences.getInstance();
@@ -123,17 +142,23 @@ class KioskoService {
     }
   }
 
-  // ── Pendientes offline ───────────────────────────────────────
+  // ─────────────────────────────────────────────
+  //  Cola de pendientes — PÚBLICO para la UI
+  // ─────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> _getPendingOps(int anio) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('kiosko_pending_$anio');
-    if (raw == null) return [];
-    return List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+  Future<List<Map<String, dynamic>>> getPendingOps(int anio) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('kiosko_pending_$anio');
+      if (raw == null) return [];
+      return List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> _savePendingOp(int anio, Map<String, dynamic> op) async {
-    final ops = await _getPendingOps(anio);
+    final ops = await getPendingOps(anio);
     ops.add(op);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('kiosko_pending_$anio', jsonEncode(ops));
@@ -144,37 +169,55 @@ class KioskoService {
     await prefs.remove('kiosko_pending_$anio');
   }
 
-  // ── API calls con fallback offline ──────────────────────────
+  // ─────────────────────────────────────────────
+  //  Obtener cuaderno (con fallback offline)
+  // ─────────────────────────────────────────────
 
-  /// Carga el cuaderno. Si no hay red, devuelve la cache local.
-  Future<CuadernoKiosko?> getCuaderno(int anio) async {
+  Future<KioskoLoadResult> getCuadernoResult(int anio) async {
     try {
       final response = await _client
           .get(Uri.parse('$_baseUrl/$anio'))
           .timeout(const Duration(seconds: 6));
-
       if (response.statusCode == 200) {
         final cuaderno = CuadernoKiosko.fromJson(
             jsonDecode(response.body) as Map<String, dynamic>);
         await _saveToCache(cuaderno);
-        return cuaderno;
+        return KioskoLoadResult(cuaderno: cuaderno);
       } else if (response.statusCode == 404) {
-        return null; // No existe aún
+        return const KioskoLoadResult(cuaderno: null, notFound: true);
       }
-    } catch (_) {
-      // Sin red → devolver cache
-      return _loadFromCache(anio);
+      final cache = await _loadFromCache(anio);
+      return KioskoLoadResult(
+        cuaderno: cache,
+        fromCache: cache != null,
+        error: 'HTTP ${response.statusCode}: ${response.body}',
+      );
+    } catch (e) {
+      final cache = await _loadFromCache(anio);
+      return KioskoLoadResult(
+        cuaderno: cache,
+        fromCache: cache != null,
+        error: e,
+      );
     }
-    return _loadFromCache(anio);
   }
 
-  /// Crea el cuaderno con la lista de acampados del año
-  Future<CuadernoKiosko?> crearCuaderno(
+  Future<CuadernoKiosko?> getCuaderno(int anio) async {
+    return (await getCuadernoResult(anio)).cuaderno;
+  }
+
+  // ─────────────────────────────────────────────
+  //  Crear cuaderno
+  // ─────────────────────────────────────────────
+
+  Future<CuadernoKiosko> crearCuaderno(
       int anio, List<Map<String, dynamic>> acampados) async {
-    final body = jsonEncode({'anio': anio, 'acampados': acampados});
     final response = await _client
-        .post(Uri.parse(_baseUrl),
-            headers: {'Content-Type': 'application/json'}, body: body)
+        .post(
+          Uri.parse(_baseUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'anio': anio, 'acampados': acampados}),
+        )
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 201) {
@@ -183,13 +226,68 @@ class KioskoService {
       await _saveToCache(cuaderno);
       return cuaderno;
     }
-    throw Exception('Error al crear cuaderno: ${response.body}');
+    throw Exception('Error ${response.statusCode}: ${response.body}');
   }
 
-  /// Actualiza dinero traído. Guarda en cache y encola si offline.
+  // ─────────────────────────────────────────────
+  //  Añadir acampado a cuaderno existente
+  // ─────────────────────────────────────────────
+
+  Future<CuadernoKiosko> anadirAcampado(
+      int anio, String nombre, String apellidos) async {
+    final response = await _client
+        .post(
+          Uri.parse('$_baseUrl/$anio/acampados'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'acampados': [
+              {'nombre': nombre, 'apellidos': apellidos, 'totalTraido': 0}
+            ]
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 201) {
+      final cuaderno = CuadernoKiosko.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+      await _saveToCache(cuaderno);
+      return cuaderno;
+    }
+    throw Exception('Error ${response.statusCode}: ${response.body}');
+  }
+
+  // ─────────────────────────────────────────────
+  //  Eliminar acampado
+  // ─────────────────────────────────────────────
+
+  Future<bool> eliminarAcampado(int anio, String acampadoId) async {
+    // Actualizar cache local inmediatamente
+    final cache = await _loadFromCache(anio);
+    if (cache != null) {
+      cache.acampados.removeWhere((a) => a.id == acampadoId);
+      await _saveToCache(cache);
+    }
+
+    try {
+      final response = await _client
+          .delete(Uri.parse('$_baseUrl/$anio/acampados/$acampadoId'))
+          .timeout(const Duration(seconds: 6));
+      return response.statusCode == 200;
+    } catch (_) {
+      await _savePendingOp(anio, {
+        'type': 'deleteAcampado',
+        'acampadoId': acampadoId,
+      });
+      return true;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Actualizar dinero traído
+  // ─────────────────────────────────────────────
+
   Future<bool> actualizarDinero(
       int anio, String acampadoId, double cantidad) async {
-    // Actualizar cache local inmediatamente
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -207,25 +305,23 @@ class KioskoService {
           .timeout(const Duration(seconds: 6));
       return response.statusCode == 200;
     } catch (_) {
-      // Sin red → encolar operación
       await _savePendingOp(anio, {
         'type': 'updateDinero',
         'acampadoId': acampadoId,
         'totalTraido': cantidad,
       });
-      return true; // Guardado localmente
+      return true;
     }
   }
 
-  /// Registra un gasto. Guarda en cache y encola si offline.
-  Future<bool> registrarGasto(int anio, String acampadoId, int dia,
-      double cantidad, String descripcion) async {
-    final gasto = {
-      'dia': dia,
-      'cantidad': cantidad,
-    };
+  // ─────────────────────────────────────────────
+  //  Registrar gasto
+  // ─────────────────────────────────────────────
 
-    // Actualizar cache local inmediatamente
+  Future<bool> registrarGasto(
+      int anio, String acampadoId, int dia, double cantidad) async {
+    final gasto = {'dia': dia, 'cantidad': cantidad};
+
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -254,10 +350,12 @@ class KioskoService {
     }
   }
 
-  /// Eliminar un gasto
+  // ─────────────────────────────────────────────
+  //  Eliminar gasto
+  // ─────────────────────────────────────────────
+
   Future<bool> eliminarGasto(
       int anio, String acampadoId, int gastoIndex) async {
-    // Actualizar cache
     final cache = await _loadFromCache(anio);
     if (cache != null) {
       final idx = cache.acampados.indexWhere((a) => a.id == acampadoId);
@@ -283,9 +381,27 @@ class KioskoService {
     }
   }
 
-  /// Sincronizar operaciones pendientes cuando vuelve la conexión
+  // ─────────────────────────────────────────────
+  //  Exportar PDF — descarga directa en el navegador
+  // ─────────────────────────────────────────────
+
+  Future<void> exportarPDF(int anio, {ModoPDF modo = ModoPDF.completo}) async {
+    final modoParam = modo == ModoPDF.blanco ? 'blanco' : 'completo';
+    final url = '$_baseUrl/$anio/export/pdf?modo=$modoParam';
+    final nombreArchivo = modo == ModoPDF.blanco
+        ? 'Cuaderno_Kiosko_${anio}_EnBlanco.pdf'
+        : 'Cuaderno_Kiosko_${anio}_Completo.pdf';
+
+    // Usa downloadPdfUrl definida en web/index.html
+    platform.downloadUrl(url, nombreArchivo);
+  }
+
+  // ─────────────────────────────────────────────
+  //  Sincronizar pendientes offline
+  // ─────────────────────────────────────────────
+
   Future<int> sincronizarPendientes(int anio) async {
-    final ops = await _getPendingOps(anio);
+    final ops = await getPendingOps(anio);
     if (ops.isEmpty) return 0;
 
     int sincronizadas = 0;
@@ -298,26 +414,24 @@ class KioskoService {
                 anio, op['acampadoId'], (op['totalTraido'] as num).toDouble());
             break;
           case 'addGasto':
-            ok = await registrarGasto(
-              op['acampadoId'],
-              op['dia'] as int,
-              (op['cantidad'] as num).toDouble(),
-            );
+            ok = await registrarGasto(anio, op['acampadoId'],
+                op['dia'] as int, (op['cantidad'] as num).toDouble());
             break;
           case 'deleteGasto':
-            ok = await eliminarGasto(anio, op['acampadoId'], op['index'] as int);
+            ok = await eliminarGasto(
+                anio, op['acampadoId'], op['index'] as int);
+            break;
+          case 'deleteAcampado':
+            ok = await eliminarAcampado(anio, op['acampadoId']);
             break;
         }
         if (ok) sincronizadas++;
       } catch (_) {
-        break; // Si falla, parar y mantener pendientes
+        break;
       }
     }
 
-    if (sincronizadas == ops.length) {
-      await _clearPendingOps(anio);
-    }
-
+    if (sincronizadas == ops.length) await _clearPendingOps(anio);
     return sincronizadas;
   }
 }
