@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../widgets/iconos.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
+import '../services/api_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -16,7 +19,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _DashboardItem('Actividades', Icons.sports, const Color(0xFF4CAF50), 2),
     _DashboardItem('Dinámicas', iconoCruz, const Color(0xFFFFC107), 3),
     _DashboardItem('Kiosko', Icons.store, const Color(0xFF1A5FA8), 5),
+    // Abre la página del generador de plannings (la sirve el backend y pide
+    // la misma clave que la subida de recursos).
+    _DashboardItem('Generador de plannings', Icons.description, const Color(0xFF7B1FA2), -1,
+        ruta: '/planning.html'),
   ];
+
+  Future<void> _abrirPagina(String ruta) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final origen = Uri.parse(ApiService.baseUrl).origin;
+    bool abierto = false;
+    try {
+      abierto = await launchUrl(
+        Uri.parse('$origen$ruta'),
+        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+    } catch (_) {
+      abierto = false;
+    }
+    if (!abierto) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir la página')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +76,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     verticalOffset: 50,
                     child: FadeInAnimation(
                       child: GestureDetector(
-                        onTap: () => mainNavKey.currentState?.setIndex(item.index),
+                        onTap: () {
+                          final ruta = item.ruta;
+                          if (ruta != null) {
+                            _abrirPagina(ruta);
+                          } else {
+                            mainNavKey.currentState?.setIndex(item.index);
+                          }
+                        },
                         child: Card(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
@@ -104,6 +138,7 @@ class _DashboardItem {
   final IconData icon;
   final Color color;
   final int index;
+  final String? ruta; // si no es null, abre esa página del backend
 
-  _DashboardItem(this.title, this.icon, this.color, this.index);
+  _DashboardItem(this.title, this.icon, this.color, this.index, {this.ruta});
 }
