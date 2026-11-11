@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import '../widgets/iconos.dart';
 import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -14,7 +14,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<_DashboardItem> allItems = [
     _DashboardItem('Formaciones', Icons.school, const Color(0xFF2196F3), 1),
     _DashboardItem('Actividades', Icons.sports, const Color(0xFF4CAF50), 2),
-    _DashboardItem('Dinámicas', MdiIcons.cross, const Color(0xFFFFC107), 3),
+    _DashboardItem('Dinámicas', iconoCruz, const Color(0xFFFFC107), 3),
     _DashboardItem('Kiosko', Icons.store, const Color(0xFF1A5FA8), 5),
   ];
 

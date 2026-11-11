@@ -83,4 +83,19 @@ class ApiService {
       throw Exception("Error al cargar los años de dinámicas");
     }
   }
+
+  /// Grupos que tienen dinámicas: de un año, o de todos si no se indica año.
+  static Future<List<String>> getGruposDinamicas({int? anio}) async {
+    final uri = Uri.parse("$baseUrl/grupos-dinamicas").replace(
+      queryParameters: anio != null ? {"anio": "$anio"} : null,
+    );
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List jsonData = jsonDecode(response.body);
+      return jsonData.cast<String>();
+    } else {
+      throw Exception("Error al cargar los grupos de dinámicas");
+    }
+  }
 }

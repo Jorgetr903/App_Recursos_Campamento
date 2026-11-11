@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/recurso_model.dart';
 import '../providers/favoritos_provider.dart';
@@ -15,6 +16,7 @@ class ResourceScreen extends StatelessWidget {
   final ScrollController? controller;
   final bool loading;
   final bool hasMore;
+  final double bottomPadding;
 
   const ResourceScreen({
     super.key,
@@ -22,9 +24,10 @@ class ResourceScreen extends StatelessWidget {
     this.controller,
     this.loading = false,
     this.hasMore = false,
+    this.bottomPadding = 0,
   });
 
-  Future<void> _downloadFile(Recurso recurso) async {
+  Future<void> _downloadFile(BuildContext context, Recurso recurso) async {
     final downloadName = _downloadFilename(recurso.titulo, recurso.fullUrl);
 
     if (kIsWeb) {
@@ -32,7 +35,22 @@ class ResourceScreen extends StatelessWidget {
       return;
     }
 
-    await DownloadService.downloadFile(recurso.fullUrl, downloadName, null);
+    final messenger = ScaffoldMessenger.of(context);
+    var iniciada = false;
+    try {
+      iniciada = await launchUrl(
+        Uri.parse(recurso.downloadUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      iniciada = false;
+    }
+
+    if (!iniciada) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo iniciar la descarga')),
+      );
+    }
   }
 
   void _shareFile(String url) {
@@ -60,6 +78,7 @@ class ResourceScreen extends StatelessWidget {
 
     return ListView.builder(
       controller: controller,
+      padding: bottomPadding > 0 ? EdgeInsets.only(bottom: bottomPadding) : null, 
       itemCount: recursos.length + (hasMore || loading ? 1 : 0),
       itemBuilder: (context, index) {
         if (index < recursos.length) {
@@ -96,7 +115,7 @@ class ResourceScreen extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.download),
-                    onPressed: () => _downloadFile(recurso),
+                    onPressed: () => _downloadFile(context, recurso),
                   ),
                 ],
               ),

@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../models/recurso_model.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/resource_screen.dart';
+import '../widgets/subir_recurso_fab.dart';
 import '../main.dart';
 
 class FormacionesScreen extends StatefulWidget {
@@ -76,6 +77,7 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
             },
           ),
         ),
+        floatingActionButton: const SubirRecursoFab(tipo: 'formacion'),        
         body: Column(
           children: [
             Padding(
@@ -88,7 +90,7 @@ class _FormacionesScreenState extends State<FormacionesScreen> {
             Expanded(
               child: loading
                   ? const Center(child: CircularProgressIndicator())
-                  : ResourceScreen(recursos: recursos),
+                  : ResourceScreen(recursos: recursos, bottomPadding: 88),
             ),
           ],
         ),

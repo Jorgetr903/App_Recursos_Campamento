@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../models/recurso_model.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/resource_screen.dart';
+import '../widgets/subir_recurso_fab.dart';
 import '../main.dart';
 
 class DinamicasScreen extends StatefulWidget {
@@ -25,12 +26,16 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
   int _requestId = 0;
   final ScrollController _scrollController = ScrollController();
 
-  final grupos = ["Pequeños", "Medianos", "Mayores"];
+  // Grupos del filtro. Empiezan siendo los de siempre y se actualizan con los
+  // que haya en la base de datos (según el año elegido).
+  List<String> availableGrupos = ["Pequeños", "Medianos", "Mayores"];
+  int _gruposRequestId = 0;
 
   @override
   void initState() {
     super.initState();
     fetchYearsAndRecursos();
+    fetchGrupos();
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
@@ -46,6 +51,26 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> fetchGrupos() async {
+    final requestId = ++_gruposRequestId;
+
+    try {
+      final grupos = await ApiService.getGruposDinamicas(anio: selectedAnio);
+
+      if (!mounted || requestId != _gruposRequestId || grupos.isEmpty) return;
+
+      setState(() {
+        availableGrupos = grupos;
+        // Si el grupo elegido no existe en ese año, se quita
+        if (selectedGrupo != null && !grupos.contains(selectedGrupo)) {
+          selectedGrupo = null;
+        }
+      });
+    } catch (_) {
+      // Si falla, nos quedamos con la lista que hubiera
+    }
   }
 
   Future<void> fetchYearsAndRecursos() async {
@@ -144,6 +169,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
             },
           ),
         ),
+        floatingActionButton: const SubirRecursoFab(tipo: 'dinamica'),
         body: Column(
           children: [
             Padding(
@@ -168,15 +194,17 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                               child: Text("$a"),
                             ))
                         .toList(),
-                    onChanged: (v) {
+                    onChanged: (v) async {
                       setState(() => selectedAnio = v);
+                      await fetchGrupos(); // los grupos de ese año
+                      if (!mounted) return;
                       fetchYearsAndRecursos();
                     },
                   ),
                   DropdownButton<String>(
                     hint: const Text("Grupo"),
                     value: selectedGrupo,
-                    items: grupos
+                    items: availableGrupos
                         .map((g) => DropdownMenuItem(
                               value: g,
                               child: Text(g),
@@ -196,6 +224,7 @@ class _DinamicasScreenState extends State<DinamicasScreen> {
                 controller: _scrollController,
                 loading: loading,
                 hasMore: hasMore,
+                bottomPadding: 88,
               ),
             ),
           ],

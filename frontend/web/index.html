@@ -30,7 +30,9 @@
       async function fetchBlob(downloadUrl) {
         const response = await fetch(downloadUrl, { mode: 'cors' });
         if (!response.ok) {
-          throw new Error('Download failed with status ' + response.status);
+          const error = new Error('Download failed with status ' + response.status);
+          error.status = response.status;
+          throw error;
         }
         return await response.blob();
       }
@@ -60,10 +62,17 @@
         return;
       } catch (error) {
         console.warn('Falling back to browser download link:', error);
+        if (error && error.status) {
+          // El servidor ha respondido con un error (por ejemplo, el archivo no
+          // existe): avisamos sin sacar al usuario de la app.
+          alert('No se ha podido descargar el archivo (error ' + error.status + ').');
+          return;
+        }
       }
 
       var a = document.createElement('a');
       a.href = url;
+      a.target = '_blank';
       a.download = filename || 'archivo.pdf';
       a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
